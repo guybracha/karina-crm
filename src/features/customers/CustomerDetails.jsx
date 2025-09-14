@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
 import CustomerForm from './CustomerForm';
+import CustomerPhotos from "./CustomerPhotos";
 
 export default function CustomerDetails(){
   const { id } = useParams();
@@ -35,7 +36,13 @@ export default function CustomerDetails(){
             <p><strong>Tag:</strong> <span className="badge text-bg-secondary">{cust.tag||'—'}</span></p>
             <p><strong>Notes:</strong><br/>{cust.notes||'—'}</p>
           </div>
+          <CustomerPhotos
+            id={id}
+            urls={cust.orderImageUrls || []}
+            onChange={(next) => setCust((prev) => ({ ...prev, orderImageUrls: next }))}
+          />
         </div>
+        
       ) : (
         <div className="card">
           <div className="card-body">
