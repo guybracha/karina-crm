@@ -85,3 +85,40 @@ h1 { font-weight: 700; letter-spacing: .2px; }
 /* Avatars / thumbs */
 .thumb-28 { width: 28px; height: 28px; object-fit: cover; border-radius: .5rem; }
 .thumb-40 { width: 40px; height: 40px; object-fit: cover; border-radius: .5rem; }
+
+/* === CRM Theme Variables and Overrides === */
+:root{
+  --crm-primary:#FFB0CD;
+  --crm-bg:#F6F7FB;
+  --crm-surface:#FFFFFF;
+  --crm-border:#E5E7EB;
+  --crm-text:#111827;
+  --crm-muted:#6B7280;
+}
+
+/* Primary button to match CRM theme */
+.btn-primary{ background:var(--crm-primary); color:#111827; border:0; }
+
+/* Card surface tweaks */
+.card{ background:var(--crm-surface); border:1px solid var(--crm-border); border-radius:12px; }
+
+/* Optional sidebar style (if/when used) */
+.sidebar{ background:#111827; color:#fff; }
+
+/* === Dashboard mockup helpers === */
+.badge-live{ font-size:.75rem; border-radius:999px; padding:.15rem .55rem; border:1px solid transparent; font-weight:600; }
+.badge-live.pink{ background:#ffe5f0; color:#b5176b; border-color:#ffd1e2; }
+.badge-live.orange{ background:#ffe8cc; color:#a15c00; border-color:#ffd8a8; }
+.badge-live.green{ background:#d3f9d8; color:#2b8a3e; border-color:#b2f2bb; }
+
+.activity-list .item{ border-radius:.75rem; padding-inline: .25rem; }
+.activity-list .dot{ width:10px; height:10px; background:#d1d5db; border-radius:999px; flex:0 0 10px; }
+.activity-list .title{ font-weight:600; }
+
+.kanban-mini .cell{
+  height:56px; border:1px solid var(--crm-border); border-radius:12px;
+  background:#f8f9fb; position:relative;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.02);
+}
+[dir='rtl'] .kanban-mini .cell::before{ content:''; position:absolute; right:6px; top:8px; bottom:8px; width:4px; background:var(--crm-primary); border-radius:3px; }
+[dir='ltr'] .kanban-mini .cell::before{ content:''; position:absolute; left:6px; top:8px; bottom:8px; width:4px; background:var(--crm-primary); border-radius:3px; }

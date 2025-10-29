@@ -1,6 +1,7 @@
 // src/features/pipeline/Pipeline.jsx
 import { useEffect, useMemo, useState } from 'react';
 import ImportCSV from '@/components/ImportCSV.jsx';
+import * as api from '@/lib/localApi.js';
 
 const STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
 const STORAGE_KEY = 'crm:deals';
@@ -22,10 +23,17 @@ export default function Pipeline() {
   const [deals, setDeals] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [form, setForm] = useState({ title: '', amount: '', customer: '', stage: 'lead' });
+  const [form, setForm] = useState({ title: '', amount: '', customerId: '', stage: 'lead' });
+  const [customers, setCustomers] = useState([]);
 
   useEffect(() => { setDeals(loadDeals()); }, []);
   useEffect(() => { saveDeals(deals); }, [deals]);
+  // Load customers for the select list
+  useEffect(() => {
+    (async () => {
+      try { setCustomers(await api.listCustomers()); } catch {}
+    })();
+  }, []);
 
   const columns = useMemo(() => {
     const map = Object.fromEntries(STAGES.map((s) => [s, []]));
@@ -47,16 +55,20 @@ export default function Pipeline() {
   function addDeal(e) {
     e?.preventDefault?.();
     if (!form.title) return;
+    if (!form.customerId) return; // must pick an existing customer
+    const c = customers.find((x) => String(x.id) === String(form.customerId));
+    const displayName = c?.name || c?.company || c?.fullName || c?.email || 'Customer';
     const d = {
       id: crypto.randomUUID(),
       title: form.title.trim(),
       amount: Number(form.amount || 0),
-      customer: form.customer?.trim() || '',
+      customer: String(displayName).trim(),
+      customerId: c?.id ?? form.customerId,
       stage: STAGES.includes(form.stage) ? form.stage : 'lead',
       createdAt: Date.now(),
     };
     setDeals((prev) => [d, ...prev]);
-    setForm({ title: '', amount: '', customer: '', stage: 'lead' });
+    setForm({ title: '', amount: '', customerId: '', stage: 'lead' });
     setShowForm(false);
   }
 
@@ -145,7 +157,20 @@ export default function Pipeline() {
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Customer</label>
-                <input className="form-control" value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} />
+                <select
+                  className="form-select"
+                  required
+                  disabled={!customers.length}
+                  value={form.customerId}
+                  onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+                >
+                  <option value="">{customers.length ? 'בחר לקוח…' : 'אין לקוחות'}</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name || c.company || c.fullName || c.email || c.id}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="col-md-2">
                 <label className="form-label fw-semibold">Stage</label>

@@ -20,6 +20,11 @@ model Customer {
   notes           String?
   logoUrl         String?
   photos          CustomerPhoto[]
+  // Firebase linkage (optional)
+  firebaseUid     String?  @unique
+  // Last order date to support follow-up reminders
+  lastOrderAt     DateTime?
+  tasks           Task[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -30,4 +35,18 @@ model CustomerPhoto {
   customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   url         String
   createdAt   DateTime @default(now())
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title       String
+  dueAt       DateTime
+  status      String   @default("open") // open | done
+  kind        String?  // optional classification, e.g., followup, call
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
 }

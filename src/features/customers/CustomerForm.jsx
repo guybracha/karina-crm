@@ -164,6 +164,20 @@ export default function CustomerForm({ defaultValues, onSubmit, onCancel }) {
         />
       </div>
 
+      {/* Last Order Date (for follow-up reminder) */}
+      <div className="col-md-4">
+        <label className="form-label fw-bold">Last Order Date</label>
+        <input
+          type="date"
+          className="form-control"
+          value={form.lastOrderAt ? new Date(form.lastOrderAt).toISOString().slice(0,10) : ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            setForm((prev) => ({ ...prev, lastOrderAt: v ? new Date(v).toISOString() : undefined }));
+          }}
+        />
+      </div>
+
       {/* עיר — עם הצעות אוטומטיות מה־API */}
       <div className="col-md-4">
         <label className="form-label fw-bold d-flex align-items-center gap-2">

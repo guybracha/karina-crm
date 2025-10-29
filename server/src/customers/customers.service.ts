@@ -13,6 +13,8 @@ type ApiCustomer = {
   notes?: string | null;
   logoUrl?: string | null;
   orderImageUrls: string[];
+  firebaseUid?: string | null;
+  lastOrderAt?: number | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -34,9 +36,28 @@ export class CustomersService {
       orderImageUrls: Array.isArray(c.photos)
         ? c.photos.map((p: any) => p.url)
         : [],
+      firebaseUid: c.firebaseUid ?? undefined,
+      lastOrderAt: c.lastOrderAt ? new Date(c.lastOrderAt).getTime() : undefined,
       createdAt: new Date(c.createdAt).getTime(),
       updatedAt: new Date(c.updatedAt).getTime(),
     };
+  }
+
+  private async upsertFollowUpTask(customerId: string, lastOrderAt: Date): Promise<void> {
+    const due = new Date(lastOrderAt);
+    if (Number.isNaN(+due)) return;
+    due.setMonth(due.getMonth() + 6);
+
+    await this.prisma.task.deleteMany({ where: { customerId, kind: 'followup' } }).catch(() => {});
+    await this.prisma.task.create({
+      data: {
+        customerId,
+        title: 'Follow-up call after last order',
+        dueAt: due,
+        status: 'open',
+        kind: 'followup',
+      },
+    });
   }
 
   async create(dto: CreateCustomerDto): Promise<ApiCustomer> {
@@ -49,12 +70,18 @@ export class CustomersService {
         tag: dto.tag,
         notes: dto.notes,
         logoUrl: dto.logoUrl,
+        firebaseUid: dto.firebaseUid,
+        lastOrderAt: dto.lastOrderAt ? new Date(dto.lastOrderAt) : undefined,
         photos: dto.orderImageUrls && dto.orderImageUrls.length
           ? { create: dto.orderImageUrls.map((url) => ({ url })) }
           : undefined,
       },
       include: { photos: { orderBy: { createdAt: 'asc' } } },
     });
+    // Schedule follow-up task if lastOrderAt was provided
+    if (created.lastOrderAt) {
+      await this.upsertFollowUpTask(created.id, created.lastOrderAt);
+    }
     return this.toApi(created);
   }
 
@@ -86,6 +113,8 @@ export class CustomersService {
         tag: dto.tag ?? undefined,
         notes: dto.notes ?? undefined,
         logoUrl: dto.logoUrl ?? undefined,
+        firebaseUid: dto.firebaseUid ?? undefined,
+        lastOrderAt: dto.lastOrderAt ? new Date(dto.lastOrderAt) : undefined,
       },
     });
 
@@ -103,6 +132,13 @@ export class CustomersService {
       where: { id },
       include: { photos: { orderBy: { createdAt: 'asc' } } },
     });
+    // If lastOrderAt changed, upsert follow-up task
+    if (dto.lastOrderAt) {
+      const when = new Date(dto.lastOrderAt);
+      if (!Number.isNaN(+when)) {
+        await this.upsertFollowUpTask(id, when);
+      }
+    }
     return this.toApi(refreshed);
   }
 

@@ -69,3 +69,43 @@ export async function uploadCustomerLogo(id, file) {
   const { data } = await http.post(`/customers/${id}/logo`, fd);
   return data?.url || '';
 }
+
+// Tasks API
+export async function listTasks() {
+  const { data } = await http.get('/tasks');
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createTask(task) {
+  const { data } = await http.post('/tasks', task);
+  return data;
+}
+
+export async function updateTask(id, patch) {
+  const { data } = await http.put(`/tasks/${id}`, patch);
+  return data;
+}
+
+export async function removeTask(id) {
+  await http.delete(`/tasks/${id}`);
+}
+
+// Firebase sync endpoints
+export async function firebaseSyncStatus() {
+  try {
+    const { data } = await http.get('/sync/firebase/status');
+    return !!data?.configured;
+  } catch {
+    return false;
+  }
+}
+
+export async function syncFirebaseUsers() {
+  const { data } = await http.get('/sync/firebase/users');
+  return data;
+}
+
+export async function syncFirebaseOrders() {
+  const { data } = await http.get('/sync/firebase/orders');
+  return data;
+}

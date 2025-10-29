@@ -1,4 +1,4 @@
-import { IsArray, IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsDateString, IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -31,5 +31,14 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsArray()
   orderImageUrls?: string[];
-}
 
+  // Optional linkage to Firebase user
+  @IsOptional()
+  @IsString()
+  firebaseUid?: string;
+
+  // Optional last order date (ISO string)
+  @IsOptional()
+  @IsDateString()
+  lastOrderAt?: string;
+}
