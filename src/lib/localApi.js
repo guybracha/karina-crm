@@ -33,3 +33,31 @@ export async function removeCustomer(id) {
   await http.delete(`/customers/${id}`);
 }
 
+// Multipart photos upload: files is FileList or File[]
+export async function uploadCustomerPhotos(id, files) {
+  const list = Array.from(files || []);
+  if (!list.length) return [];
+  const fd = new FormData();
+  for (const f of list) fd.append('files', f);
+  const { data } = await http.post(`/customers/${id}/photos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  return Array.isArray(data?.urls) ? data.urls : [];
+}
+
+export async function listCustomerPhotos(id) {
+  const { data } = await http.get(`/customers/${id}/photos`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function removeCustomerPhoto(id, photoId) {
+  await http.delete(`/customers/${id}/photos/${photoId}`);
+}
+
+// Resolve image URL to absolute server URL when needed
+export function resolveImageUrl(u) {
+  if (!u) return u;
+  if (typeof u === 'string' && u.startsWith('/uploads/')) {
+    const base = API_URL.replace(/\/?api\/?$/, '');
+    return `${base}${u}`;
+  }
+  return u;
+}

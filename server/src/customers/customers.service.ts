@@ -109,4 +109,44 @@ export class CustomersService {
   async remove(id: string): Promise<void> {
     await this.prisma.customer.delete({ where: { id } });
   }
+
+  // Add photos from uploaded files on disk; returns public URLs
+  async addPhotosFromUploads(customerId: string, files: Express.Multer.File[]): Promise<string[]> {
+    const exists = await this.prisma.customer.findUnique({ where: { id: customerId } });
+    if (!exists) throw new NotFoundException('Customer not found');
+
+    const urls = (files || [])
+      .filter((f) => !!f?.filename)
+      .map((f) => `/uploads/${f.filename}`);
+
+    if (urls.length) {
+      await this.prisma.customerPhoto.createMany({
+        data: urls.map((url) => ({ url, customerId })),
+      });
+    }
+
+    return urls;
+  }
+
+  async removePhoto(customerId: string, photoId: string): Promise<void> {
+    const photo = await this.prisma.customerPhoto.findUnique({ where: { id: photoId } });
+    if (!photo || photo.customerId !== customerId) throw new NotFoundException('Photo not found');
+    await this.prisma.customerPhoto.delete({ where: { id: photoId } });
+    // Optionally delete file from disk if it's under /uploads
+    try {
+      if (photo.url?.startsWith('/uploads/')) {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const p = path.resolve(process.cwd(), photo.url.replace('/uploads/', 'uploads/'));
+        await fs.unlink(p).catch(() => {});
+      }
+    } catch {}
+  }
+
+  async listPhotos(customerId: string) {
+    const exists = await this.prisma.customer.findUnique({ where: { id: customerId } });
+    if (!exists) throw new NotFoundException('Customer not found');
+    const list = await this.prisma.customerPhoto.findMany({ where: { customerId }, orderBy: { createdAt: 'asc' } });
+    return list.map((p) => ({ id: p.id, url: p.url }));
+  }
 }

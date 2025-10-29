@@ -1,5 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  // On some Windows/Node setups, the Node-API (library) engine can fail to load.
+  // Force the binary engine for stability.
+  engineType = "binary"
 }
 
 datasource db {

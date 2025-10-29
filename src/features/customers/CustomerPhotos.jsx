@@ -1,7 +1,6 @@
 // src/features/customers/CustomerPhotos.jsx
 import { useRef, useState } from "react";
-import { updateCustomer } from "@/lib/localApi";
-import { compressFiles } from "@/lib/imageTools";
+import { uploadCustomerPhotos, listCustomerPhotos, removeCustomerPhoto, resolveImageUrl } from "@/lib/localApi";
 
 export default function CustomerPhotos({ id, urls = [], onChange }) {
   const inputRef = useRef(null);
@@ -12,10 +11,8 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
     if (!files?.length) return;
     setBusy(true);
     try {
-      // compress to Data URLs (1600px, quality 0.72, JPEG) and persist
-      const dataUrls = await compressFiles(files, { maxWidth: 1600, maxHeight: 1600, quality: 0.72, mime: 'image/jpeg' });
-      const next = [...urls, ...dataUrls];
-      await updateCustomer(id, { orderImageUrls: next });
+      const uploaded = await uploadCustomerPhotos(id, files);
+      const next = [...urls, ...uploaded];
       onChange?.(next);
     } finally {
       setBusy(false);
@@ -24,9 +21,14 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
   }
 
   async function removeAt(i) {
-    const next = urls.filter((_, idx) => idx !== i);
-    await updateCustomer(id, { orderImageUrls: next });
-    onChange?.(next);
+    // Map index to photo id via API and delete
+    const photos = await listCustomerPhotos(id);
+    const target = photos[i];
+    if (target?.id) {
+      await removeCustomerPhoto(id, target.id);
+      const next = urls.filter((_, idx) => idx !== i);
+      onChange?.(next);
+    }
   }
 
   return (
@@ -52,7 +54,7 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
             {urls.map((src, i) => (
               <div className="col-6 col-md-4 col-lg-3" key={i}>
                 <div className="position-relative border rounded overflow-hidden">
-                  <img src={src} alt={`photo ${i + 1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
+                  <img src={resolveImageUrl(src)} alt={`photo ${i + 1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
                   <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onClick={() => removeAt(i)}>
                     ×
                   </button>
@@ -65,4 +67,3 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
     </div>
   );
 }
-
