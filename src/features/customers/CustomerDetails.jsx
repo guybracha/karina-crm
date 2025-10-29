@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
+import { formatDateTime } from '@/lib/date';
 import CustomerForm from './CustomerForm';
 import CustomerPhotos from "./CustomerPhotos";
 
@@ -36,6 +37,8 @@ export default function CustomerDetails(){
             <p><strong>Tag:</strong> <span className="badge text-bg-secondary">{cust.tag||'—'}</span></p>
             <p><strong>Notes:</strong><br/>{cust.notes||'—'}</p>
           </div>
+            <p className="mb-1"><strong>Created:</strong> <span className="text-muted">{formatDateTime(cust.createdAt) || '—'}</span></p>
+            <p><strong>Updated:</strong> <span className="text-muted">{formatDateTime(cust.updatedAt) || '—'}</span></p>
           <CustomerPhotos
             id={id}
             urls={cust.orderImageUrls || []}

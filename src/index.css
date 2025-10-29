@@ -1,68 +1,87 @@
+/* Global base (Bootstrap-friendly) */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  --surface-bg: #f6f7fb;
+  --surface-contrast: #ffffff;
+  --accent: #0d6efd;
+  --muted: #6c757d;
+  --radius: .75rem;
+}
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+html, body, #root { height: 100%; }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #f9fafc 0%, #f3f5f9 100%);
+  color: #212529;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* Headings */
+h1, h2, h3, h4, h5 { margin-bottom: .75rem; }
+h1 { font-weight: 700; letter-spacing: .2px; }
+
+/* Utilities */
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-muted-soft { color: var(--muted) !important; opacity: .9; }
+.shadow-soft { box-shadow: 0 .125rem .5rem rgba(0,0,0,.06); }
+.rounded-lg { border-radius: var(--radius) !important; }
+.stack-sm > * { width: auto; }
+
+@media (max-width: 576px) {
+  .stack-sm > * { width: 100% !important; }
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+/* Forms */
+.form-label { margin-bottom: .35rem; }
+.form-control:focus, .form-select:focus, .btn:focus {
+  box-shadow: 0 0 0 .2rem rgba(13,110,253,.25);
+  outline: 0;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Cards */
+.card { border-radius: var(--radius); border-color: rgba(0,0,0,.08); box-shadow: 0 .125rem .5rem rgba(0,0,0,.06); }
+.card:hover { box-shadow: 0 .25rem 1rem rgba(0,0,0,.08); transition: box-shadow .2s ease; }
+.card-header { background-color: var(--surface-contrast); border-bottom-color: rgba(0,0,0,.08); }
+
+/* Tables */
+.table th, .table td { vertical-align: middle; }
+.table thead th { background-color: #f8f9fa; }
+.table tbody tr:hover { background-color: rgba(0,0,0,.02); }
+
+@media (max-width: 576px) {
+  .table td, .table th { padding: .5rem .6rem; }
+  .table { font-size: .95rem; }
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+/* Progress */
+.progress { height: 6px; border-radius: 999px; overflow: hidden; }
+.progress-bar { background-image: linear-gradient(90deg, rgba(13,110,253,.25), rgba(13,110,253,.65)); }
+
+/* Buttons */
+.btn { transition: transform .08s ease, box-shadow .2s ease; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+/* Dashboard tweaks */
+.dashboard .card { background: var(--surface-contrast); }
+.dashboard .card .table thead th { position: sticky; top: 0; z-index: 1; }
+
+/* Pipeline board */
+.pipeline-board .card { background: var(--surface-contrast); }
+.pipeline-board .card .card-header { position: sticky; top: 0; z-index: 2; }
+.pipeline-board .card-body { max-height: 70vh; overflow-y: auto; }
+.pipeline-board .border.rounded.p-2.bg-light {
+  border-radius: .75rem !important;
+  background: #f8f9fb !important;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.04), 0 .125rem .25rem rgba(0,0,0,.04);
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.pipeline-board .btn-group .btn { padding: .15rem .4rem; }
+
+@media (max-width: 992px) {
+  .pipeline-board .card-body { max-height: initial; }
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
+/* Avatars / thumbs */
+.thumb-28 { width: 28px; height: 28px; object-fit: cover; border-radius: .5rem; }
+.thumb-40 { width: 40px; height: 40px; object-fit: cover; border-radius: .5rem; }

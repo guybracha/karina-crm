@@ -4,6 +4,7 @@ import Dashboard from "../pages/Dashboard.jsx";
 import CustomersList from "../features/customers/CustomersList.jsx";
 import CustomerDetails from "../features/customers/CustomerDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import Pipeline from "../features/pipeline/Pipeline.jsx";
 
 function Shell({ children }) {
   return (
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
   { path: "/", element: <Shell><Dashboard /></Shell> },
   { path: "/customers", element: <Shell><CustomersList /></Shell> },
   { path: "/customers/:id", element: <Shell><CustomerDetails /></Shell> }, // ⬅️ חדש
+  { path: "/pipeline", element: <Shell><Pipeline /></Shell> },
   { path: "*", element: <Shell><NotFound /></Shell> },
 ]);
 

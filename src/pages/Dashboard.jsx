@@ -76,7 +76,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="container-fluid">
+    <div className="container-fluid dashboard">
       <h1 className="mb-3">Dashboard</h1>
 
       {/* KPI Cards */}
@@ -170,10 +170,6 @@ export default function Dashboard() {
               <Link to="/customers" className="btn btn-primary">+ לקוח חדש</Link>
               <Link to="/customers" className="btn btn-outline-secondary">ניהול לקוחות</Link>
               <Link to="/pipeline" className="btn btn-outline-secondary">פתח Pipeline</Link>
-              {/* כפתור ייבוא CSV – אם יש לך מסך כזה בהמשך */}
-              <button className="btn btn-outline-secondary" onClick={() => alert('Import CSV coming soon')}>
-                ייבוא CSV
-              </button>
             </div>
           </div>
         </div>
