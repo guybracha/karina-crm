@@ -39,7 +39,8 @@ export async function uploadCustomerPhotos(id, files) {
   if (!list.length) return [];
   const fd = new FormData();
   for (const f of list) fd.append('files', f);
-  const { data } = await http.post(`/customers/${id}/photos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  // Let the browser set the correct multipart boundary automatically
+  const { data } = await http.post(`/customers/${id}/photos`, fd);
   return Array.isArray(data?.urls) ? data.urls : [];
 }
 
@@ -60,4 +61,11 @@ export function resolveImageUrl(u) {
     return `${base}${u}`;
   }
   return u;
+}
+
+export async function uploadCustomerLogo(id, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const { data } = await http.post(`/customers/${id}/logo`, fd);
+  return data?.url || '';
 }

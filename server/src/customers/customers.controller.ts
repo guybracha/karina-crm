@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, NotFoundException, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, NotFoundException, UploadedFiles, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('customers')
 export class CustomersController {
@@ -54,5 +54,13 @@ export class CustomersController {
   async deletePhoto(@Param('id') id: string, @Param('photoId') photoId: string) {
     await this.customersService.removePhoto(id, photoId);
     return { ok: true };
+  }
+
+  // Upload customer logo (single file)
+  @Post(':id/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    const url = await this.customersService.setLogoFromUpload(id, file);
+    return { url };
   }
 }

@@ -22,7 +22,8 @@ export default function UploadSingle({ onUploaded, accept = 'image/*', compress 
     setProgress(50);
     const dataUrl = await compressImageFile(file, compress);
     setProgress(100);
-    onUploaded?.(dataUrl);
+    // Pass both the Data URL (for preview/fallback) and the file itself
+    onUploaded?.(dataUrl, file);
     setTimeout(() => setProgress(0), 800);
   }
 
@@ -59,4 +60,3 @@ export default function UploadSingle({ onUploaded, accept = 'image/*', compress 
     </div>
   );
 }
-

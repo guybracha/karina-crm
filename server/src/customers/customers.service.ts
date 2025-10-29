@@ -149,4 +149,25 @@ export class CustomersService {
     const list = await this.prisma.customerPhoto.findMany({ where: { customerId }, orderBy: { createdAt: 'asc' } });
     return list.map((p) => ({ id: p.id, url: p.url }));
   }
+
+  async setLogoFromUpload(customerId: string, file?: Express.Multer.File): Promise<string> {
+    const exists = await this.prisma.customer.findUnique({ where: { id: customerId } });
+    if (!exists) throw new NotFoundException('Customer not found');
+    if (!file?.filename) return exists.logoUrl || '';
+
+    const newUrl = `/uploads/${file.filename}`;
+
+    // Delete previous file from disk if stored under uploads
+    try {
+      if (exists.logoUrl?.startsWith('/uploads/')) {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const p = path.resolve(process.cwd(), exists.logoUrl.replace('/uploads/', 'uploads/'));
+        await fs.unlink(p).catch(() => {});
+      }
+    } catch {}
+
+    await this.prisma.customer.update({ where: { id: customerId }, data: { logoUrl: newUrl } });
+    return newUrl;
+  }
 }

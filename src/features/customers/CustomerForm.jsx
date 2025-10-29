@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { TAGS, emptyCustomer } from '@/types/customer';
 import UploadSingle from '../../components/UploadSingle';
 import UploadMulti from '../../components/UploadMulti';
+import { uploadCustomerLogo } from '@/lib/localApi';
+import { resolveImageUrl } from '@/lib/localApi';
 
 const CITIES_API =
   'https://data.gov.il/api/3/action/datastore_search?resource_id=d4901968-dad3-4845-a9b0-a57d027f11ab&limit=1272';
@@ -77,11 +79,24 @@ export default function CustomerForm({ defaultValues, onSubmit, onCancel }) {
       <div className="col-12">
         <label className="form-label fw-bold">Customer Logo</label>
         <UploadSingle
-          onUploaded={(url) => setForm((prev) => ({ ...prev, logoUrl: url }))}
+          onUploaded={async (dataUrl, file) => {
+            // If editing existing customer (has id), upload to server and store returned URL
+            if (file && defaultValues?.id) {
+              try {
+                const serverUrl = await uploadCustomerLogo(defaultValues.id, file);
+                setForm((prev) => ({ ...prev, logoUrl: serverUrl }));
+                return;
+              } catch {
+                // Fallback to Data URL on failure
+              }
+            }
+            // Create mode (no id) or fallback: store Data URL directly
+            setForm((prev) => ({ ...prev, logoUrl: dataUrl }));
+          }}
         />
         {form.logoUrl && (
           <img
-            src={form.logoUrl}
+            src={resolveImageUrl(form.logoUrl)}
             alt=""
             className="mt-2 rounded shadow-sm border"
             style={{ width: 72, height: 72, objectFit: 'cover' }}
