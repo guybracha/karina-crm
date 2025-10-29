@@ -1,40 +1,22 @@
 // src/features/customers/CustomerPhotos.jsx
 import { useRef, useState } from "react";
 import { updateCustomer } from "@/lib/localApi";
-import { compressFiles, approxBytesOfDataURL } from "@/lib/imageTools";
+import { compressFiles } from "@/lib/imageTools";
 
 export default function CustomerPhotos({ id, urls = [], onChange }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
-  const LOCALSTORAGE_SOFT_LIMIT = 4.5 * 1024 * 1024; // ~4.5MB כדי לא לגעת בתקרה
 
   async function handleUpload(e) {
     const files = e.target?.files;
     if (!files?.length) return;
     setBusy(true);
     try {
-      // דחיסה (1600px ארוך, quality 0.72, JPEG)
+      // compress to Data URLs (1600px, quality 0.72, JPEG) and persist
       const dataUrls = await compressFiles(files, { maxWidth: 1600, maxHeight: 1600, quality: 0.72, mime: 'image/jpeg' });
-
-      // סינון לפי נפח משוער כדי לא לקרוס את localStorage
-      const existingBytes = (urls || []).reduce((sum, u) => sum + approxBytesOfDataURL(u), 0);
-      const accepted = [];
-      let budget = LOCALSTORAGE_SOFT_LIMIT - existingBytes;
-
-      for (const u of dataUrls) {
-        const size = approxBytesOfDataURL(u);
-        if (size <= budget) { accepted.push(u); budget -= size; }
-        else { break; }
-      }
-
-      const next = [...urls, ...accepted];
+      const next = [...urls, ...dataUrls];
       await updateCustomer(id, { orderImageUrls: next });
       onChange?.(next);
-
-      if (accepted.length < dataUrls.length) {
-        console.warn("Skipped some images due to localStorage limit.");
-        alert("חלק מהתמונות לא נשמרו בגלל מגבלת נפח הדפדפן. מומלץ לעבור ל-Firebase Storage לשמירה יציבה.");
-      }
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -70,8 +52,10 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
             {urls.map((src, i) => (
               <div className="col-6 col-md-4 col-lg-3" key={i}>
                 <div className="position-relative border rounded overflow-hidden">
-                  <img src={src} alt={`photo ${i+1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
-                  <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onClick={() => removeAt(i)}>×</button>
+                  <img src={src} alt={`photo ${i + 1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
+                  <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onClick={() => removeAt(i)}>
+                    ×
+                  </button>
                 </div>
               </div>
             ))}
@@ -81,3 +65,4 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
     </div>
   );
 }
+

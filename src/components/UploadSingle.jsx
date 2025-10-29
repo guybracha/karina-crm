@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
+import { compressImageFile } from '@/lib/imageTools';
 
-export default function UploadSingle({ onUploaded, accept = 'image/*' }) {
+export default function UploadSingle({ onUploaded, accept = 'image/*', compress = { maxWidth: 512, maxHeight: 512, quality: 0.8, mime: 'image/jpeg' } }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -16,52 +17,29 @@ export default function UploadSingle({ onUploaded, accept = 'image/*' }) {
     setPreview(f ? URL.createObjectURL(f) : '');
   }
 
-  function upload() {
+  async function upload() {
     if (!file) return;
-    // דמו: “העלאה” מיידית
+    setProgress(50);
+    const dataUrl = await compressImageFile(file, compress);
     setProgress(100);
-    const url = preview || URL.createObjectURL(file);
-    onUploaded?.(url);
+    onUploaded?.(dataUrl);
     setTimeout(() => setProgress(0), 800);
   }
 
   return (
     <div className="d-flex flex-column gap-2">
-      {/* בחירת קובץ (מוסתר) */}
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="d-none"
-        onChange={handleFiles}
-      />
+      <input ref={inputRef} type="file" accept={accept} className="d-none" onChange={handleFiles} />
 
-      {/* קבוצת כפתורים/תצוגה */}
       <div className="input-group">
-        <button
-          type="button"
-          className="btn btn-outline-secondary"
-          onClick={pick}
-        >
+        <button type="button" className="btn btn-outline-secondary" onClick={pick}>
           בחר קובץ
         </button>
-        <input
-          type="text"
-          className="form-control"
-          value={file ? file.name : 'לא נבחר קובץ'}
-          readOnly
-        />
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!file}
-          onClick={upload}
-        >
+        <input type="text" className="form-control" value={file ? file.name : 'לא נבחר קובץ'} readOnly />
+        <button type="button" className="btn btn-primary" disabled={!file} onClick={upload}>
           העלה
         </button>
       </div>
 
-      {/* Progress bar */}
       {progress > 0 && progress < 100 && (
         <div className="progress" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100">
           <div className="progress-bar" style={{ width: `${progress}%` }}>
@@ -77,15 +55,8 @@ export default function UploadSingle({ onUploaded, accept = 'image/*' }) {
         </div>
       )}
 
-      {/* תצוגה מקדימה */}
-      {preview && (
-        <img
-          src={preview}
-          alt=""
-          className="rounded shadow-sm border mt-1"
-          style={{ width: 120, height: 120, objectFit: 'cover' }}
-        />
-      )}
+      {preview && <img src={preview} alt="" className="rounded shadow-sm border mt-1" style={{ width: 120, height: 120, objectFit: 'cover' }} />}
     </div>
   );
 }
+

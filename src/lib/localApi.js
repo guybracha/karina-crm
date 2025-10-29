@@ -1,85 +1,35 @@
 // src/lib/localApi.js
-const KEY = 'crm:customers';
+import axios from 'axios';
 
-const read = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-  catch { return []; }
-};
-const write = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
-
-function normalizeCustomer(c) {
-  return {
-    id: c.id,
-    name: c.name || '',
-    email: c.email || '',
-    phone: c.phone || '',
-    city: c.city || '',
-    tag: c.tag ?? '',
-    notes: c.notes || '',
-    logoUrl: typeof c.logoUrl === 'string' ? c.logoUrl : '',
-    orderImageUrls: Array.isArray(c.orderImageUrls) ? c.orderImageUrls : [],
-    createdAt: c.createdAt ?? Date.now(),
-    updatedAt: c.updatedAt ?? Date.now(),
-  };
-}
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+const http = axios.create({ baseURL: API_URL });
 
 export async function listCustomers() {
-  return read()
-    .map(normalizeCustomer)
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const { data } = await http.get('/customers');
+  return data;
 }
 
 export async function getCustomer(id) {
-  const found = read().find(x => x.id === id);
-  return found ? normalizeCustomer(found) : null;
+  try {
+    const { data } = await http.get(`/customers/${id}`);
+    return data;
+  } catch (e) {
+    return null;
+  }
 }
 
-export async function createCustomer(data) {
-  const id = crypto.randomUUID();
-  const now = Date.now();
-  const next = normalizeCustomer({ id, createdAt: now, updatedAt: now, ...data });
-  write([...read(), next]);
-  return { id }; // שמרתי התאמה לאיך שקראת קודם
+export async function createCustomer(payload) {
+  const { data } = await http.post('/customers', payload);
+  // Keep return shape minimal to not break callers
+  return { id: data?.id };
 }
 
-/**
- * עדכון לקוח עם מיזוג ושמירת createdAt. מחזיר את האובייקט לאחר עדכון.
- * שימושי במיוחד לשדות תמונה:
- *  - אם patch.logoUrl לא נשלח, נשמר הערך הישן.
- *  - אם patch.orderImageUrls לא מערך, נשמר הישן.
- */
 export async function updateCustomer(id, patch) {
-  const all = read();
-  const ix = all.findIndex(x => x.id === id);
-  if (ix === -1) throw new Error('Customer not found');
-
-  const prev = normalizeCustomer(all[ix]);
-
-  // נורמליזציה לשדות בעייתיים
-  const merged = {
-    ...prev,
-    ...patch,
-  };
-
-  // ודא טיפוסים נכונים לשדות המדיה
-  merged.logoUrl =
-    'logoUrl' in (patch || {})
-      ? (typeof patch.logoUrl === 'string' ? patch.logoUrl : '')
-      : prev.logoUrl;
-
-  merged.orderImageUrls =
-    'orderImageUrls' in (patch || {}) && Array.isArray(patch.orderImageUrls)
-      ? patch.orderImageUrls
-      : prev.orderImageUrls;
-
-  merged.createdAt = prev.createdAt;   // לא לגעת
-  merged.updatedAt = Date.now();
-
-  all[ix] = merged;
-  write(all);
-  return merged;
+  const { data } = await http.put(`/customers/${id}`, patch);
+  return data;
 }
 
 export async function removeCustomer(id) {
-  write(read().filter(x => x.id !== id));
+  await http.delete(`/customers/${id}`);
 }
+
