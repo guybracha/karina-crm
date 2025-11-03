@@ -1,6 +1,7 @@
 // src/features/customers/CustomersList.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { listCustomers, createCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
+import { cloudAvailable, listCloudCustomers, listCloudOrders, latestOrderTimestampByUser } from '@/lib/cloudApi';
 import CloudImage from '@/components/CloudImage.jsx';
 import CustomerForm from './CustomerForm';
 
@@ -8,6 +9,9 @@ export default function CustomersList(){
   const [rows,setRows]=useState([]);
   const [filter,setFilter]=useState('');
   const [editing,setEditing]=useState(null);
+  const [importing,setImporting]=useState(false);
+  const directMode = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+  const requireAuth = String(import.meta.env.VITE_REQUIRE_AUTH || '').toLowerCase() === 'true';
 
   async function refresh(){ setRows(await listCustomers()); }
   useEffect(()=>{ refresh(); }, []);
@@ -27,6 +31,63 @@ export default function CustomersList(){
   async function onUpdate(id,data){ await updateCustomer(id,data); setEditing(null); await refresh(); }
   async function onDelete(id){ if(confirm('Delete?')) { await removeCustomer(id); await refresh(); } }
 
+  async function importFromFirebase(){
+    if(!directMode){ alert('Direct Firebase import is disabled. Use server sync from Dashboard.'); return; }
+    if(!requireAuth){ alert('Direct Firebase import requires login enabled. Set VITE_REQUIRE_AUTH=true or use server sync.'); return; }
+    if(!cloudAvailable()){ alert('Firebase config missing. Check src/.env'); return; }
+    setImporting(true);
+    let created=0, updated=0, scanned=0;
+    try{
+      const cloud = await listCloudCustomers();
+      scanned = Array.isArray(cloud) ? cloud.length : 0;
+
+      // Read local customers directly from server API to avoid direct-mode override
+      const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '');
+      let local = [];
+      try { const res = await fetch(`${API_URL}/customers`); if(res.ok) local = await res.json(); } catch {}
+
+      const byUid = new Map(local.filter(x=>x.firebaseUid).map(x=>[String(x.firebaseUid), x]));
+      const byEmail = new Map(local.filter(x=>x.email).map(x=>[String(x.email).toLowerCase(), x]));
+
+      for(const c of cloud){
+        const uid = c.firebaseUid || c.uid || c.id;
+        const email = (c.email||'').toLowerCase();
+        const payload = {
+          name: c.name,
+          email: c.email || undefined,
+          phone: c.phone || undefined,
+          city: c.city || undefined,
+          tag: c.tag || undefined,
+          notes: c.notes || undefined,
+          logoUrl: c.logoUrl || undefined,
+          firebaseUid: uid || undefined,
+          lastOrderAt: c.lastOrderAt || undefined,
+        };
+        const target = (uid && byUid.get(String(uid))) || (email && byEmail.get(email)) || null;
+        try{
+          if(target){ await updateCustomer(target.id, payload); updated++; }
+          else { await createCustomer(payload); created++; }
+        } catch {}
+      }
+
+      // Enrich lastOrderAt from orders (optional)
+      try{
+        const orders = await listCloudOrders();
+        const latest = latestOrderTimestampByUser(orders);
+        for(const [uid, when] of latest.entries()){
+          const t = byUid.get(String(uid));
+          if(!t) continue;
+          await updateCustomer(t.id, { lastOrderAt: when });
+        }
+      } catch {}
+
+      alert(`ייבוא הסתיים\nנסרקו: ${scanned}\nנוצרו: ${created}\nעודכנו: ${updated}`);
+      await refresh();
+      const direct = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+      if(direct){ console.warn('Direct Firebase mode is ON. UI may show cloud data; set VITE_USE_FIREBASE_DIRECT=false to view server data.'); }
+    } finally { setImporting(false); }
+  }
+
   return (
     <>
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -40,6 +101,30 @@ export default function CustomersList(){
           <CustomerForm onSubmit={onCreate}/>
         </div>
       </div>
+
+      {/* Client-side import from Firebase (only visible when direct mode + auth) */}
+      {directMode && requireAuth && (
+      <div className="card mb-4">
+        <div className="card-header d-flex justify-content-between align-items-center">
+          <span>Import from Firebase</span>
+          <button
+            className="btn btn-outline-success"
+            onClick={importFromFirebase}
+            disabled={importing}
+            title="ייבוא ישיר מפיירסטור"
+          >
+            {importing && (
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            )}
+            Run Import
+          </button>
+        </div>
+        <div className="card-body text-muted small">
+          Reads directly from Firestore in the browser and upserts into the local server database.
+        </div>
+      </div>
+
+      )}
 
       <div className="table-responsive">
         <table className="table align-middle">

@@ -1,11 +1,13 @@
-﻿import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Navbar from "./Navbar.jsx";
 import Dashboard from "../pages/Dashboard.jsx";
 import CustomersList from "../features/customers/CustomersList.jsx";
 import CustomerDetails from "../features/customers/CustomerDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import NotFound from "../pages/NotFound.jsx";
 import Pipeline from "../features/pipeline/Pipeline.jsx";
 import AuthGate from "../auth/authGate.jsx";
+import Pipeline from "../features/pipeline/Pipeline.jsx";
 
 function Shell({ children }) {
   return (
@@ -16,9 +18,10 @@ function Shell({ children }) {
   );
 }
 
-const requireAuth = String(import.meta.env.VITE_REQUIRE_AUTH || '').toLowerCase() === 'true';
 
-function page(el) {
+const requireAuth = String(import.meta.env.VITE_REQUIRE_AUTH || ').toLowerCase() === 'true';
+
+function Page(el) {
   return (
     <Shell>
       {requireAuth ? <AuthGate>{el}</AuthGate> : el}
@@ -27,11 +30,11 @@ function page(el) {
 }
 
 const router = createBrowserRouter([
-  { path: "/", element: page(<Dashboard />) },
-  { path: "/customers", element: page(<CustomersList />) },
-  { path: "/customers/:id", element: page(<CustomerDetails />) },
-  { path: "/pipeline", element: page(<Pipeline />) },
-  { path: "*", element: page(<NotFound />) },
+  { path: "/", element: Page(<Dashboard />) },
+  { path: "/customers", element: Page(<CustomersList />) },
+  { path: "/customers/:id", element: Page(<CustomerDetails />) }, // ⬅️ חדש
+  { path: "/pipeline", element: Page(<Pipeline />) },
+  { path: "*", element: Page(<NotFound />) },
 ]);
 
 export default function AppRouter() {

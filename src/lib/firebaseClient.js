@@ -1,6 +1,6 @@
 // src/lib/firebaseClient.js
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 function readConfig() {
@@ -18,6 +18,7 @@ function readConfig() {
 }
 
 let app = null;
+let db = null;
 export function getFirebaseApp() {
   if (app) return app;
   const cfg = readConfig();
@@ -28,7 +29,19 @@ export function getFirebaseApp() {
 
 export function getDb() {
   const a = getFirebaseApp();
-  return a ? getFirestore(a) : null;
+  if (!a) return null;
+  if (db) return db;
+  try {
+    // Improve compatibility in strict networks/proxies and reduce noisy terminate errors
+    db = initializeFirestore(a, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false,
+    });
+  } catch (e) {
+    // If already initialized (e.g., HMR), fall back to the default getter
+    db = getFirestore(a);
+  }
+  return db;
 }
 
 export function getBucket() {
@@ -39,4 +52,3 @@ export function getBucket() {
 export function isFirebaseConfigured() {
   return !!readConfig();
 }
-

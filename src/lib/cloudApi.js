@@ -1,13 +1,48 @@
 // src/lib/cloudApi.js
 // Read data directly from Firebase (client SDK) using env config
 import { collection, getDocs } from 'firebase/firestore';
-import { getDb, isFirebaseConfigured } from './firebaseClient';
+import { getDb, isFirebaseConfigured, getFirebaseApp } from './firebaseClient';
+import { getAuth } from 'firebase/auth';
 
 const USERS_COLL = import.meta.env.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
 const ORDERS_COLL = import.meta.env.VITE_FIREBASE_ORDERS_COLLECTION || 'orders_prod';
+const REMOTE_CUSTOMERS_URL = import.meta.env.VITE_REMOTE_CUSTOMERS_URL || '';
+const REMOTE_ORDERS_URL = import.meta.env.VITE_REMOTE_ORDERS_URL || '';
 
 export function cloudAvailable() {
+  if (REMOTE_CUSTOMERS_URL || REMOTE_ORDERS_URL) return true;
   return isFirebaseConfigured();
+}
+
+async function getIdTokenOptional(timeoutMs = 3000) {
+  try {
+    const app = getFirebaseApp();
+    if (!app) return null;
+    const auth = getAuth(app);
+    if (auth?.currentUser) return await auth.currentUser.getIdToken();
+    const user = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), timeoutMs);
+      const unsub = auth.onAuthStateChanged((u) => {
+        clearTimeout(timer);
+        unsub();
+        resolve(u || null);
+      });
+    });
+    return user ? await user.getIdToken() : null;
+  } catch { return null; }
+}
+
+async function fetchJson(url) {
+  const headers = { Accept: 'application/json' };
+  const idToken = await getIdTokenOptional();
+  if (idToken) headers.Authorization = `Bearer ${idToken}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    let text = '';
+    try { text = await res.text(); } catch {}
+    throw new Error(`Remote fetch failed (${res.status}): ${text || res.statusText}`);
+  }
+  return res.json();
 }
 
 function toMs(v) {
@@ -21,50 +56,96 @@ function toMs(v) {
 }
 
 export async function listCloudCustomers() {
+  if (REMOTE_CUSTOMERS_URL) {
+    const payload = await fetchJson(REMOTE_CUSTOMERS_URL);
+    const rows = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.customers)
+        ? payload.customers
+        : [];
+    return rows.map((row, idx) => normalizeCustomer(row, idx));
+  }
   const db = getDb();
   if (!db) return [];
   const snap = await getDocs(collection(db, USERS_COLL));
   const list = [];
-  snap.forEach((doc) => {
-    const d = doc.data() || {};
-    const name = d.name || d.fullName || [d.firstName, d.lastName].filter(Boolean).join(' ') || d.email || d.phone || 'User';
-    list.push({
-      id: doc.id,
-      name,
-      email: d.email || undefined,
-      phone: d.phone || d.phoneNumber || undefined,
-      city: d.city || d.addressCity || undefined,
-      tag: d.tag || d.segment || undefined,
-      notes: d.notes || undefined,
-      logoUrl: d.logoUrl || undefined,
-      orderImageUrls: [],
-      firebaseUid: d.uid || d.userId || d.userUID || doc.id,
-      lastOrderAt: toMs(d.lastOrderAt),
-      createdAt: toMs(d.createdAt) || undefined,
-      updatedAt: toMs(d.updatedAt) || undefined,
-    });
+  snap.forEach((doc, idx) => {
+    list.push(normalizeCustomer({ id: doc.id, ...(doc.data() || {}) }, idx));
   });
   return list;
 }
 
 export async function listCloudOrders() {
+  if (REMOTE_ORDERS_URL) {
+    const payload = await fetchJson(REMOTE_ORDERS_URL);
+    const rows = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.orders)
+        ? payload.orders
+        : [];
+    return rows.map((row, idx) => normalizeOrder(row, idx));
+  }
   const db = getDb();
   if (!db) return [];
   const snap = await getDocs(collection(db, ORDERS_COLL));
   const list = [];
-  snap.forEach((doc) => {
-    const d = doc.data() || {};
-    const uid = d.userId || d.uid || d.userUID || d.user || d.customerId || d.customerUID || null;
-    const ts = d.createdAt || d.created_at || d.timestamp || d.placedAt || d.time || null;
-    list.push({
-      id: doc.id,
-      userId: uid,
-      amount: Number(d.amount || d.total || 0),
-      createdAt: toMs(ts),
-      raw: d,
-    });
+  snap.forEach((doc, idx) => {
+    list.push(normalizeOrder({ id: doc.id, ...(doc.data() || {}) }, idx));
   });
   return list;
+}
+
+function normalizeCustomer(data = {}, index = 0) {
+  const name =
+    data.name ||
+    data.fullName ||
+    [data.firstName, data.lastName].filter(Boolean).join(' ') ||
+    data.email ||
+    data.phone ||
+    'Customer';
+  const idCandidate =
+    data.id ??
+    data.customerId ??
+    data.firebaseUid ??
+    data.uid ??
+    data.userId ??
+    data.email ??
+    data.phone;
+  const rawImages = data.orderImageUrls || data.orderImages || data.photos || [];
+  return {
+    id: String(idCandidate ?? `remote-${index}`),
+    name,
+    email: data.email || data.mail || undefined,
+    phone: data.phone || data.phoneNumber || undefined,
+    city: data.city || data.addressCity || undefined,
+    tag: data.tag || data.segment || undefined,
+    notes: data.notes || undefined,
+    logoUrl: data.logoUrl || data.logo || data.avatarUrl || undefined,
+    orderImageUrls: Array.isArray(rawImages) ? rawImages : [],
+    firebaseUid:
+      data.firebaseUid ||
+      data.uid ||
+      data.userId ||
+      data.customerId ||
+      undefined,
+    lastOrderAt: toMs(data.lastOrderAt || data.lastOrderDate || data.lastOrder),
+    createdAt: toMs(data.createdAt) || undefined,
+    updatedAt: toMs(data.updatedAt) || undefined,
+  };
+}
+
+function normalizeOrder(data = {}, index = 0) {
+  const uid =
+    data.userId || data.customerId || data.customerUID || data.uid || data.firebaseUid;
+  const idCandidate = data.id ?? data.orderId ?? data.order_id ?? uid;
+  const ts = data.createdAt || data.created_at || data.timestamp || data.placedAt || data.time;
+  return {
+    id: String(idCandidate ?? `remote-order-${index}`),
+    userId: uid ? String(uid) : undefined,
+    amount: Number(data.amount ?? data.total ?? 0),
+    createdAt: toMs(ts),
+    raw: data,
+  };
 }
 
 export function latestOrderTimestampByUser(orders) {

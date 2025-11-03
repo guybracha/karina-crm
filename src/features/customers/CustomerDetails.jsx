@@ -4,12 +4,15 @@ import { getCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
 import { formatDateTime } from '@/lib/date';
 import CustomerForm from './CustomerForm';
 import CustomerPhotos from "./CustomerPhotos";
+import CloudImage from '@/components/CloudImage.jsx';
+import { Modal } from 'react-bootstrap';
 
 export default function CustomerDetails(){
   const { id } = useParams();
   const nav = useNavigate();
   const [cust,setCust]=useState(null);
   const [edit,setEdit]=useState(false);
+  const [showLogo,setShowLogo]=useState(false);
 
   useEffect(()=>{ getCustomer(id).then(setCust); },[id]);
 
@@ -19,7 +22,20 @@ export default function CustomerDetails(){
   return (
     <>
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="m-0">{cust.name}</h1>
+        <div className="d-flex align-items-center gap-3">
+          {cust.logoUrl ? (
+            <CloudImage
+              src={cust.logoUrl}
+              alt="Customer logo"
+              className="rounded border"
+              style={{ width: 56, height: 56, objectFit: 'cover', cursor: 'pointer' }}
+              onClick={()=>setShowLogo(true)}
+            />
+          ) : (
+            <div className="rounded border bg-light" style={{ width: 56, height: 56 }} />
+          )}
+          <h1 className="m-0">{cust.name}</h1>
+        </div>
         <div className="d-flex gap-2">
           <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
           <button className="btn btn-outline-danger" onClick={async()=>{
@@ -73,6 +89,18 @@ export default function CustomerDetails(){
           </div>
         </div>
       )}
+
+      {/* Logo modal */}
+      <Modal show={showLogo} onHide={()=>setShowLogo(false)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{cust.name} – Logo</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          {cust.logoUrl && (
+            <CloudImage src={cust.logoUrl} alt="Customer logo" className="img-fluid rounded border" />
+          )}
+        </Modal.Body>
+      </Modal>
     </>
   );
 }
