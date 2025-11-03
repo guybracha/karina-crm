@@ -1,12 +1,27 @@
 // src/lib/localApi.js
 import axios from 'axios';
+import { cloudAvailable, listCloudCustomers } from './cloudApi';
+import { listCloudOrders } from './cloudApi';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
 const http = axios.create({ baseURL: API_URL });
 
 export async function listCustomers() {
-  const { data } = await http.get('/customers');
-  return data;
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+  if (preferCloud && cloudAvailable()) {
+    try { return await listCloudCustomers(); } catch {}
+  }
+  try {
+    const { data } = await http.get('/customers');
+    return data;
+  } catch (err) {
+    // Fallback to cloud when server is not reachable
+    if (cloudAvailable()) {
+      try { return await listCloudCustomers(); } catch {}
+    }
+    // Final fallback: empty list (avoid crashing UI when server is down)
+    return [];
+  }
 }
 
 export async function getCustomer(id) {
@@ -14,6 +29,13 @@ export async function getCustomer(id) {
     const { data } = await http.get(`/customers/${id}`);
     return data;
   } catch (e) {
+    // Basic fallback: if we have cloud data cached by list, try find it
+    try {
+      if (cloudAvailable()) {
+        const list = await listCloudCustomers();
+        return list.find((c) => String(c.id) === String(id)) || null;
+      }
+    } catch {}
     return null;
   }
 }
@@ -72,8 +94,47 @@ export async function uploadCustomerLogo(id, file) {
 
 // Tasks API
 export async function listTasks() {
-  const { data } = await http.get('/tasks');
-  return Array.isArray(data) ? data : [];
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+  if (preferCloud && cloudAvailable()) {
+    try { return await tasksFromOrders(); } catch { return []; }
+  }
+  try {
+    const { data } = await http.get('/tasks');
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    if (cloudAvailable()) {
+      try { return await tasksFromOrders(); } catch {}
+    }
+    return [];
+  }
+}
+
+async function tasksFromOrders() {
+  const orders = await listCloudOrders();
+  // Reduce to latest order date per user uid
+  const latest = new Map();
+  for (const o of orders) {
+    const uid = o.userId || o.uid || o.userUID || o.user || o.customerId || o.customerUID;
+    const ts = o.createdAt || o.created_at || o.timestamp || o.placedAt || o.time;
+    let when = ts?.toDate ? +ts.toDate() : (typeof ts === 'number' ? ts : +new Date(ts));
+    if (!uid || !when || Number.isNaN(when)) continue;
+    const prev = latest.get(uid);
+    if (!prev || when > prev) latest.set(uid, when);
+  }
+  const tasks = [];
+  for (const [uid, when] of latest.entries()) {
+    const due = new Date(when);
+    due.setMonth(due.getMonth() + 6);
+    tasks.push({
+      id: `cloud-${uid}`,
+      customerId: uid,
+      title: 'Follow-up call after last order',
+      dueAt: +due,
+      status: 'open',
+      kind: 'followup',
+    });
+  }
+  return tasks;
 }
 
 export async function createTask(task) {
@@ -92,6 +153,8 @@ export async function removeTask(id) {
 
 // Firebase sync endpoints
 export async function firebaseSyncStatus() {
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+  if (preferCloud) return false; // no backend needed
   try {
     const { data } = await http.get('/sync/firebase/status');
     return !!data?.configured;

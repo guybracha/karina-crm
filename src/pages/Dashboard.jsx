@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../lib/localApi";
+import { cloudAvailable, listCloudOrders } from "../lib/cloudApi";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export default function Dashboard() {
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [syncReady, setSyncReady] = useState(false); // kept for future actions
-  const [syncing, setSyncing] = useState(false);     // kept for future actions
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -20,11 +21,17 @@ export default function Dashboard() {
       if (typeof api.listTasks === "function") {
         try { setTasks(await api.listTasks()); } catch {}
       }
-
-      if (typeof api.firebaseSyncStatus === 'function') {
-        try { setSyncReady(await api.firebaseSyncStatus()); } catch {}
-      }
     })();
+  }, []);
+
+  // Load orders from Firestore for charts (no server needed)
+  useEffect(() => {
+    let abort = false;
+    (async () => {
+      if (!cloudAvailable()) return;
+      try { const o = await listCloudOrders(); if (!abort) setOrders(o || []); } catch {}
+    })();
+    return () => { abort = true; };
   }, []);
 
   // Basic KPIs
@@ -39,6 +46,26 @@ export default function Dashboard() {
     () => [...customers].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,6),
     [customers]
   );
+
+  // Orders chart data: last 6 months
+  const ordersSeries = useMemo(() => {
+    const end = new Date();
+    const items = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(end.getFullYear(), end.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      items.push({ key, label: d.toLocaleDateString('he-IL', { month: 'short' }), count: 0, amount: 0 });
+    }
+    const map = Object.fromEntries(items.map(it => [it.key, it]));
+    orders.forEach(o => {
+      const when = o.createdAt || 0;
+      if (!when) return;
+      const d = new Date(when);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      if (map[key]) { map[key].count += 1; map[key].amount += Number(o.amount || 0); }
+    });
+    return items;
+  }, [orders]);
 
   return (
     <div className="container-fluid dashboard">
@@ -124,6 +151,25 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Orders chart */}
+      <div className="card mt-3">
+        <div className="card-header fw-semibold d-flex justify-content-between align-items-center">
+          <span>Orders (last 6 months)</span>
+          <span className="text-muted small">{orders.length} total</span>
+        </div>
+        <div className="card-body" style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={ordersSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" />
+              <YAxis allowDecimals={false} />
+              <Tooltip formatter={(v, n) => n === 'amount' ? Math.round(v).toLocaleString('he-IL') : v} />
+              <Bar dataKey="count" name="Orders" fill="#ff80a6" radius={[6,6,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

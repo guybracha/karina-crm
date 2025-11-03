@@ -1,6 +1,7 @@
 // src/features/customers/CustomersList.jsx
 import { useEffect, useMemo, useState } from 'react';
-import { listCustomers, createCustomer, updateCustomer, removeCustomer, resolveImageUrl } from '@/lib/localApi';
+import { listCustomers, createCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
+import CloudImage from '@/components/CloudImage.jsx';
 import CustomerForm from './CustomerForm';
 
 export default function CustomersList(){
@@ -60,7 +61,7 @@ export default function CustomersList(){
                 {/* Logo */}
                 <td>
                   {c.logoUrl
-                    ? <img src={resolveImageUrl(c.logoUrl)} alt="" className="rounded border" style={{width:40,height:40,objectFit:'cover'}}/>
+                    ? <CloudImage src={c.logoUrl} alt="" className="rounded border" style={{width:40,height:40,objectFit:'cover'}}/>
                     : <div className="rounded border bg-light" style={{width:40,height:40}}/>
                   }
                 </td>
@@ -79,8 +80,8 @@ export default function CustomersList(){
                     <div className="d-flex align-items-center gap-2">
                       <div className="d-flex gap-1">
                         {c.orderImageUrls.slice(0,3).map((u,i)=>(
-                          <img key={i} src={resolveImageUrl(u)} alt="" className="rounded border"
-                               style={{width:28,height:28,objectFit:'cover'}}/>
+                          <CloudImage key={i} src={u} alt="" className="rounded border"
+                                      style={{width:28,height:28,objectFit:'cover'}}/>
                         ))}
                       </div>
                       {c.orderImageUrls.length > 3 && (

@@ -4,7 +4,7 @@ import { TAGS, emptyCustomer } from '@/types/customer';
 import UploadSingle from '../../components/UploadSingle';
 import UploadMulti from '../../components/UploadMulti';
 import { uploadCustomerLogo } from '@/lib/localApi';
-import { resolveImageUrl } from '@/lib/localApi';
+import CloudImage from '@/components/CloudImage.jsx';
 
 const CITIES_API =
   'https://data.gov.il/api/3/action/datastore_search?resource_id=d4901968-dad3-4845-a9b0-a57d027f11ab&limit=1272';
@@ -95,8 +95,8 @@ export default function CustomerForm({ defaultValues, onSubmit, onCancel }) {
           }}
         />
         {form.logoUrl && (
-          <img
-            src={resolveImageUrl(form.logoUrl)}
+          <CloudImage
+            src={form.logoUrl}
             alt=""
             className="mt-2 rounded shadow-sm border"
             style={{ width: 72, height: 72, objectFit: 'cover' }}

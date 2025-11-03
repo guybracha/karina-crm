@@ -1,6 +1,7 @@
 // src/features/customers/CustomerPhotos.jsx
 import { useRef, useState } from "react";
-import { uploadCustomerPhotos, listCustomerPhotos, removeCustomerPhoto, resolveImageUrl } from "@/lib/localApi";
+import { uploadCustomerPhotos, listCustomerPhotos, removeCustomerPhoto } from "@/lib/localApi";
+import CloudImage from "@/components/CloudImage.jsx";
 
 export default function CustomerPhotos({ id, urls = [], onChange }) {
   const inputRef = useRef(null);
@@ -54,7 +55,7 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
             {urls.map((src, i) => (
               <div className="col-6 col-md-4 col-lg-3" key={i}>
                 <div className="position-relative border rounded overflow-hidden">
-                  <img src={resolveImageUrl(src)} alt={`photo ${i + 1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
+                  <CloudImage src={src} alt={`photo ${i + 1}`} className="w-100" style={{ aspectRatio: "1 / 1", objectFit: "cover" }} />
                   <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onClick={() => removeAt(i)}>
                     ×
                   </button>
@@ -67,3 +68,5 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
     </div>
   );
 }
+
+
