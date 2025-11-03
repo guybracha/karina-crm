@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { TAGS, emptyCustomer } from '@/types/customer';
 import UploadSingle from '../../components/UploadSingle';
 import UploadMulti from '../../components/UploadMulti';
-import { uploadCustomerLogo } from '@/lib/localApi';
+import { uploadCustomerLogo, uploadCustomerPhotos } from '@/lib/localApi';
 import CloudImage from '@/components/CloudImage.jsx';
 
 const CITIES_API =
@@ -108,12 +108,26 @@ export default function CustomerForm({ defaultValues, onSubmit, onCancel }) {
       <div className="col-12">
         <label className="form-label fw-bold">Order Images</label>
         <UploadMulti
-          onUploadedMany={(urls) =>
+          onUploadedMany={async (dataUrls, originalFiles) => {
+            // If editing existing customer (has id), upload files to server and store returned URLs
+            if (defaultValues?.id && originalFiles?.length) {
+              try {
+                const uploaded = await uploadCustomerPhotos(defaultValues.id, originalFiles);
+                setForm((prev) => ({
+                  ...prev,
+                  orderImageUrls: [...(prev.orderImageUrls ?? []), ...uploaded],
+                }));
+                return;
+              } catch {
+                // Fall back to Data URLs if server upload fails
+              }
+            }
+            // Create mode (no id) or fallback: keep Data URLs in form
             setForm((prev) => ({
               ...prev,
-              orderImageUrls: [...(prev.orderImageUrls ?? []), ...urls],
-            }))
-          }
+              orderImageUrls: [...(prev.orderImageUrls ?? []), ...(dataUrls || [])],
+            }));
+          }}
         />
         {!!form.orderImageUrls?.length && (
           <div className="d-flex flex-wrap gap-2 mt-2">

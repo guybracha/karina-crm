@@ -24,7 +24,8 @@ export default function UploadMulti({ onUploadedMany, accept = 'image/*', compre
       // Convert files to compressed Data URLs so they can persist in DB
       const dataUrls = await compressFiles(files, compress);
       setProgress(100);
-      onUploadedMany?.(dataUrls);
+      // Pass both data URLs and the original File objects for server uploads when needed
+      onUploadedMany?.(dataUrls, files);
     } finally {
       setTimeout(() => setProgress(null), 800);
     }
@@ -74,4 +75,3 @@ export default function UploadMulti({ onUploadedMany, accept = 'image/*', compre
     </div>
   );
 }
-

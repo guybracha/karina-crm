@@ -49,7 +49,27 @@ export default function CustomerDetails(){
       ) : (
         <div className="card">
           <div className="card-body">
-            <CustomerForm defaultValues={cust} onSubmit={async (d)=>{ await updateCustomer(id,d); setEdit(false); setCust(await getCustomer(id)); }} onCancel={()=>setEdit(false)} />
+            <CustomerForm
+              defaultValues={cust}
+              onSubmit={async (d)=>{
+                // Sanitize payload to avoid validation errors (exclude client-only fields)
+                const patch = {
+                  name: d.name,
+                  email: d.email || undefined,
+                  phone: d.phone || undefined,
+                  city: d.city || undefined,
+                  tag: d.tag || undefined,
+                  notes: d.notes || undefined,
+                  logoUrl: d.logoUrl || undefined,
+                  firebaseUid: d.firebaseUid || undefined,
+                  lastOrderAt: d.lastOrderAt || undefined,
+                };
+                await updateCustomer(id, patch);
+                setEdit(false);
+                setCust(await getCustomer(id));
+              }}
+              onCancel={()=>setEdit(false)}
+            />
           </div>
         </div>
       )}
