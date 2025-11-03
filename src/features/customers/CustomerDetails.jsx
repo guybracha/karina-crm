@@ -13,6 +13,7 @@ export default function CustomerDetails(){
   const [cust,setCust]=useState(null);
   const [edit,setEdit]=useState(false);
   const [showLogo,setShowLogo]=useState(false);
+  const directMode = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
 
   useEffect(()=>{ getCustomer(id).then(setCust); },[id]);
 
@@ -37,14 +38,20 @@ export default function CustomerDetails(){
           <h1 className="m-0">{cust.name}</h1>
         </div>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
-          <button className="btn btn-outline-danger" onClick={async()=>{
-            if(confirm('Delete?')){ await removeCustomer(id); nav('/customers'); }
-          }}>Delete</button>
+          {directMode ? (
+            <span className="text-muted small">Read only</span>
+          ) : (
+            <>
+              <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
+              <button className="btn btn-outline-danger" onClick={async()=>{
+                if(confirm('Delete?')){ await removeCustomer(id); nav('/customers'); }
+              }}>Delete</button>
+            </>
+          )}
         </div>
       </div>
 
-      {!edit ? (
+      {directMode || !edit ? (
         <div className="card">
           <div className="card-body">
             <p><strong>Email:</strong> {cust.email||'—'}</p>

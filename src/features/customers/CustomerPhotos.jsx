@@ -10,6 +10,7 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
   const [busy, setBusy] = useState(false);
   const [zipping, setZipping] = useState(false);
   const [selected, setSelected] = useState(new Set());
+  const directMode = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
 
   async function handleUpload(e) {
     const files = e.target?.files;
@@ -114,15 +115,17 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
             {!!selected.size && (
               <button type="button" className="btn btn-outline-secondary" onClick={clearSelection}>Clear</button>
             )}
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="form-control"
-              onChange={handleUpload}
-              disabled={busy}
-            />
+            {!directMode && (
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="form-control"
+                onChange={handleUpload}
+                disabled={busy}
+              />
+            )}
           </div>
         </div>
 
@@ -141,9 +144,11 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
                     <a className="btn btn-sm btn-outline-secondary" href={resolveImageUrl(src)} target="_blank" rel="noreferrer" download>
                       Download
                     </a>
-                    <button type="button" className="btn btn-sm btn-danger" onClick={() => removeAt(i)}>
-                      Delete
-                    </button>
+                    {!directMode && (
+                      <button type="button" className="btn btn-sm btn-danger" onClick={() => removeAt(i)}>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -154,4 +159,3 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
     </div>
   );
 }
-

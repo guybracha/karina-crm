@@ -1,4 +1,4 @@
-// src/features/customers/CustomersList.jsx
+﻿// src/features/customers/CustomersList.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { listCustomers, createCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
 import { cloudAvailable, listCloudCustomers, listCloudOrders, latestOrderTimestampByUser } from '@/lib/cloudApi';
@@ -81,7 +81,7 @@ export default function CustomersList(){
         }
       } catch {}
 
-      alert(`ייבוא הסתיים\nנסרקו: ${scanned}\nנוצרו: ${created}\nעודכנו: ${updated}`);
+      alert(`׳™׳™׳‘׳•׳ ׳”׳¡׳×׳™׳™׳\n׳ ׳¡׳¨׳§׳•: ${scanned}\n׳ ׳•׳¦׳¨׳•: ${created}\n׳¢׳•׳“׳›׳ ׳•: ${updated}`);
       await refresh();
       const direct = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
       if(direct){ console.warn('Direct Firebase mode is ON. UI may show cloud data; set VITE_USE_FIREBASE_DIRECT=false to view server data.'); }
@@ -92,23 +92,15 @@ export default function CustomersList(){
     <>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="m-0">Customers</h1>
-        <input className="form-control w-auto" placeholder="Search…" value={filter} onChange={e=>setFilter(e.target.value)} />
+        <input className="form-control w-auto" placeholder="Searchג€¦" value={filter} onChange={e=>setFilter(e.target.value)} />
       </div>
 
-      {directMode && (
-        <div className="alert alert-info small" role="alert">
-          Read-only mode: data is loaded directly from Firebase. Editing and deleting are disabled.
+      <div className="card mb-4">
+        <div className="card-header">Add Customer</div>
+        <div className="card-body">
+          <CustomerForm onSubmit={onCreate}/>
         </div>
-      )}
-
-      {!directMode && (
-        <div className="card mb-4">
-          <div className="card-header">Add Customer</div>
-          <div className="card-body">
-            <CustomerForm onSubmit={onCreate}/>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Client-side import from Firebase (only visible when direct mode + auth) */}
       {directMode && requireAuth && (
@@ -119,7 +111,7 @@ export default function CustomersList(){
             className="btn btn-outline-success"
             onClick={importFromFirebase}
             disabled={importing}
-            title="ייבוא ישיר מפיירסטור"
+            title="׳™׳™׳‘׳•׳ ׳™׳©׳™׳¨ ׳׳₪׳™׳™׳¨׳¡׳˜׳•׳¨"
           >
             {importing && (
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -162,10 +154,10 @@ export default function CustomersList(){
                 {/* Name (link) */}
                 <td><a href={`/customers/${c.id}`}>{c.name}</a></td>
 
-                <td>{c.email||'—'}</td>
-                <td>{c.phone||'—'}</td>
-                <td>{c.city||'—'}</td>
-                <td><span className="badge text-bg-secondary">{c.tag||'—'}</span></td>
+                <td>{c.email||'ג€”'}</td>
+                <td>{c.phone||'ג€”'}</td>
+                <td>{c.city||'ג€”'}</td>
+                <td><span className="badge text-bg-secondary">{c.tag||'ג€”'}</span></td>
 
                 {/* Order images: thumbnails + counter */}
                 <td>
@@ -181,19 +173,13 @@ export default function CustomersList(){
                         <span className="badge text-bg-light">+{c.orderImageUrls.length - 3}</span>
                       )}
                     </div>
-                  ) : <span className="text-muted">—</span>}
+                  ) : <span className="text-muted">ג€”</span>}
                 </td>
 
                 {/* Actions */}
                 <td className="text-end">
-                  {directMode ? (
-                    <span className="text-muted small">Read only</span>
-                  ) : (
-                    <>
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={()=>setEditing(c)}>Edit</button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={()=>onDelete(c.id)}>Delete</button>
-                    </>
-                  )}
+                  <button className="btn btn-sm btn-outline-primary me-2" onClick={()=>setEditing(c)}>Edit</button>
+                  <button className="btn btn-sm btn-outline-danger" onClick={()=>onDelete(c.id)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -202,7 +188,7 @@ export default function CustomersList(){
         </table>
       </div>
 
-      {!directMode && editing && (
+      {editing && (
         <div className="card mt-4">
           <div className="card-header d-flex justify-content-between align-items-center">
             <strong>Edit: {editing.name}</strong>
@@ -220,3 +206,4 @@ export default function CustomersList(){
     </>
   );
 }
+
