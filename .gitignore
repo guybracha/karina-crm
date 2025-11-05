@@ -32,5 +32,7 @@ serviceAccountKey.json
 /tools
 
 tmp_cd.txt
-tmp_requreauth.txt
+tmp_requireauth.txt
 firestore.rules
+
+/release

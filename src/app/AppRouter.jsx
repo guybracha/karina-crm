@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, createHashRouter, RouterProvider } from "react-router-dom";
 import Navbar from "./Navbar.jsx";
 import Dashboard from "../pages/Dashboard.jsx";
 import CustomersList from "../features/customers/CustomersList.jsx";
@@ -6,9 +6,13 @@ import CustomerDetails from "../features/customers/CustomerDetails.jsx";
 import OrderDetails from "../features/orders/OrderDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
 import Pipeline from "../features/pipeline/Pipeline.jsx";
+import OrdersList from "../features/orders/OrdersList.jsx";
+import OrderCreate from "../features/orders/OrderCreate.jsx";
+import TasksPage from "../features/tasks/TasksPage.jsx";
 import RequireAuth from "../auth/RequireAuth.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
+
 // Auth disabled: rendering pages directly without AuthGate
 
 function Shell({ children }) {
@@ -28,13 +32,19 @@ function page(el) {
   );
 }
 
-const router = createBrowserRouter([
+const isElectron = typeof window !== 'undefined' && !!(window.process && window.process.versions && window.process.versions.electron);
+const createRouter = isElectron ? createHashRouter : createBrowserRouter;
+
+const router = createRouter([
   { path: "/login", element: page(<Login />) },
   { path: "/register", element: page(<Register />) },
   { path: "/", element: page(<RequireAuth><Dashboard /></RequireAuth>) },
   { path: "/customers", element: page(<RequireAuth><CustomersList /></RequireAuth>) },
   { path: "/customers/:id", element: page(<RequireAuth><CustomerDetails /></RequireAuth>) },
   { path: "/pipeline", element: page(<RequireAuth><Pipeline /></RequireAuth>) },
+  { path: "/orders", element: page(<RequireAuth><OrdersList /></RequireAuth>) },
+  { path: "/orders/new", element: page(<RequireAuth><OrderCreate /></RequireAuth>) },
+  { path: "/tasks", element: page(<RequireAuth><TasksPage /></RequireAuth>) },
   { path: "/orders/:id", element: page(<RequireAuth><OrderDetails /></RequireAuth>) },
   { path: "*", element: page(<NotFound />) },
 ]);

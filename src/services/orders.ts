@@ -21,6 +21,20 @@ export async function createOrder(items: OrderItem[], status: "initiated"|"pendi
   });
 }
 
+// Create an order for a specific customer UID (manual admin entry)
+export async function createOrderForUser(customerUid: string, items: OrderItem[], status: "initiated"|"pending_payment"|"draft" = "initiated", shipping = {}, notes = "") {
+  if (!customerUid) throw new Error("customerUid required");
+  return await addDoc(collection(db, "orders_prod"), {
+    customer: { uid: customerUid },
+    items,
+    status,
+    shipping,
+    notes,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function updateOrder(orderId: string, patch: Partial<{
   items: OrderItem[];
   status: string;           // דאג שיישב על הערכים המותרים שלך בצד לקוח
