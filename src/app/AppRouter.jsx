@@ -3,6 +3,7 @@ import Navbar from "./Navbar.jsx";
 import Dashboard from "../pages/Dashboard.jsx";
 import CustomersList from "../features/customers/CustomersList.jsx";
 import CustomerDetails from "../features/customers/CustomerDetails.jsx";
+import OrderDetails from "../features/orders/OrderDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
 import Pipeline from "../features/pipeline/Pipeline.jsx";
 import RequireAuth from "../auth/RequireAuth.jsx";
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
   { path: "/customers", element: page(<RequireAuth><CustomersList /></RequireAuth>) },
   { path: "/customers/:id", element: page(<RequireAuth><CustomerDetails /></RequireAuth>) },
   { path: "/pipeline", element: page(<RequireAuth><Pipeline /></RequireAuth>) },
+  { path: "/orders/:id", element: page(<RequireAuth><OrderDetails /></RequireAuth>) },
   { path: "*", element: page(<NotFound />) },
 ]);
 

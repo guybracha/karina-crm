@@ -160,4 +160,33 @@ export class FirebaseService {
 
     return { updated, scanned };
   }
+
+  async syncStaffClaimsFromFirestore(): Promise<{ updated: number; scanned: number }> {
+    const app = await this.ensureInit();
+    if (!app) throw new Error('Firebase Admin not configured');
+    const admin: any = await import('firebase-admin');
+    const coll = 'staff';
+    const snap = await admin.firestore().collection(coll).get();
+    let scanned = 0;
+    let updated = 0;
+    for (const doc of snap.docs) {
+      scanned++;
+      const d = (doc.data && doc.data()) || {};
+      const uid: string = doc.id;
+      const active = d.active === true || d.status === 'active';
+      const role = d.role || null;
+      const claims: any = {};
+      if (active) {
+        claims.employee = true;
+        if (role === 'admin') claims.admin = true;
+        else claims.admin = false;
+      } else {
+        claims.employee = false;
+        claims.admin = false;
+      }
+      await admin.auth().setCustomUserClaims(uid, claims).catch(() => {});
+      updated++;
+    }
+    return { updated, scanned };
+  }
 }

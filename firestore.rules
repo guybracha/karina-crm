@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+
+    function isActiveStaff(uid) {
+      return exists(/databases/$(db)/documents/staff/$(uid)) &&
+             (
+               get(/databases/$(db)/documents/staff/$(uid)).data.active == true ||
+               get(/databases/$(db)/documents/staff/$(uid)).data.status == 'active'
+             );
+    }
+
+    function isAdmin(uid) {
+      return isActiveStaff(uid) &&
+             get(/databases/$(db)/documents/staff/$(uid)).data.role == 'admin';
+    }
+
+    // Data collections gated by staff
+    match /users_prod/{uid} {
+      allow read:  if isSignedIn() && isActiveStaff(request.auth.uid);
+      allow write: if isSignedIn() && isAdmin(request.auth.uid);
+    }
+
+    match /orders_prod/{id} {
+      allow read:  if isSignedIn() && isActiveStaff(request.auth.uid);
+      allow write: if isSignedIn() && isAdmin(request.auth.uid);
+    }
+
+    match /staff/{uid} {
+      // Allow everyone signed-in to read their own staff doc; admins can manage
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin(request.auth.uid));
+      allow create, update, delete: if isSignedIn() && isAdmin(request.auth.uid);
+    }
+
+    // Deny anything else by default
+    match /{document=**} { allow read, write: if false; }
+  }
+}
+

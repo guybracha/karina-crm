@@ -1,0 +1,11 @@
+﻿import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './AuthContext.jsx';
+
+export default function RequireAuth({ children }) {
+  const { user, loading } = useAuth();
+  const loc = useLocation();
+  if (loading) return <div className="container py-5">Loadingג€¦</div>;
+  if (!user) return <Navigate to="/login" replace state={{ from: loc }} />;
+  return children;
+}
+

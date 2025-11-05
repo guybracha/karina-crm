@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
 import { formatDateTime } from '@/lib/date';
 import CustomerForm from './CustomerForm';
-// CustomerPhotos removed per request
+import CustomerPhotos from "./CustomerPhotos";
 import CloudImage from '@/components/CloudImage.jsx';
 import { Modal } from 'react-bootstrap';
-import UserAllLogos from '@/components/UserAllLogos.jsx';
 
 export default function CustomerDetails(){
   const { id } = useParams();
@@ -57,15 +56,11 @@ export default function CustomerDetails(){
           </div>
             <p className="mb-1"><strong>Created:</strong> <span className="text-muted">{formatDateTime(cust.createdAt) || '—'}</span></p>
             <p><strong>Updated:</strong> <span className="text-muted">{formatDateTime(cust.updatedAt) || '—'}</span></p>
-          {/* Photos section removed */}
-          <div className="px-3 pb-3">
-            <hr/>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong>Customer logos</strong>
-              <small className="text-muted">Click any image to open/download</small>
-            </div>
-            <UserAllLogos uid={cust.firebaseUid || id} />
-          </div>
+          <CustomerPhotos
+            id={id}
+            urls={cust.orderImageUrls || []}
+            onChange={(next) => setCust((prev) => ({ ...prev, orderImageUrls: next }))}
+          />
         </div>
         
       ) : (

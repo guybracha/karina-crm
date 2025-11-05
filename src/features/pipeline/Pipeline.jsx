@@ -1,14 +1,15 @@
 // src/features/pipeline/Pipeline.jsx
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { cloudAvailable, listCloudOrders } from '@/lib/cloudApi';
 
 // Temporary orders-based pipeline (client-only, persisted in localStorage)
 const STAGES = ['received', 'graphics', 'production', 'shipped'];
 const STAGE_LABEL = {
-  received: 'ההזמנה התקבלה',
-  graphics: 'מצב גרפיקה',
-  production: 'מצב ביצוע',
-  shipped: 'נשלח ליעדו',
+  received: 'קיבול',
+  graphics: 'גרפיקה',
+  production: 'ייצור',
+  shipped: 'נשלחה',
 };
 const STORAGE_KEY = 'crm:order-pipeline'; // { [orderId]: stage }
 
@@ -102,23 +103,26 @@ export default function Pipeline() {
                       <div>
                         <div className="fw-semibold">הזמנה #{String(o.id).slice(0,8)}</div>
                         <div className="text-muted small">
-                          {o.userId ? `לקוח: ${o.userId}` : 'לקוח לא ידוע'} · סכום: {Number(o.amount||0).toLocaleString('he-IL')}
+                          {o.userId ? `לקוח: ${o.userId}` : 'לקוח לא מזוהה'} · סכום: {Number(o.amount||0).toLocaleString('he-IL')}
                         </div>
                         {o.createdAt && (
-                          <div className="text-muted small">תאריך: {new Date(o.createdAt).toLocaleDateString('he-IL')}</div>
+                          <div className="text-muted small">נוצרה: {new Date(o.createdAt).toLocaleDateString('he-IL')}</div>
                         )}
                       </div>
-                      <div className="ms-2 small text-muted text-uppercase">{stage}</div>
+                      <div className="ms-2 small text-muted text-uppercase d-flex flex-column align-items-end">
+                        <div>{stage}</div>
+                        <Link className="btn btn-sm btn-outline-primary mt-1" to={`/orders/${o.id}`}>Details</Link>
+                      </div>
                     </div>
                     <div className="d-flex justify-content-between align-items-center mt-2">
                       <div className="btn-group">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(o.id, -1)} disabled={stage === STAGES[0]}>←</button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(o.id, +1)} disabled={stage === STAGES[STAGES.length - 1]}>→</button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(o.id, -1)} disabled={stage === STAGES[0]}>◀</button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => move(o.id, +1)} disabled={stage === STAGES[STAGES.length - 1]}>▶</button>
                       </div>
                       {stage !== 'shipped' ? (
-                        <button className="btn btn-sm btn-outline-success" onClick={() => setOrderStage(o.id, 'shipped')}>סמן כנשלח</button>
+                        <button className="btn btn-sm btn-outline-success" onClick={() => setOrderStage(o.id, 'shipped')}>סמן נשלחה</button>
                       ) : (
-                        <span className="badge text-bg-success">נשלח</span>
+                        <span className="badge text-bg-success">נשלחה</span>
                       )}
                     </div>
                   </div>

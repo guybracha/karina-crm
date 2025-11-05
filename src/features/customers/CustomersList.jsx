@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { listCustomers, createCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
 import { cloudAvailable, listCloudCustomers, listCloudOrders, latestOrderTimestampByUser, getCloudStatus } from '@/lib/cloudApi';
 import CloudImage from '@/components/CloudImage.jsx';
+import UserLogo from '@/components/UserLogo.jsx';
+import UserOrderImages from '@/components/UserOrderImages.jsx';
 import CustomerForm from './CustomerForm';
 
 export default function CustomersList(){
@@ -81,7 +83,6 @@ export default function CustomersList(){
 
   return (
     <>
-      {/* DiagFirebase widget removed from Customers list */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="m-0">Customers</h1>
         <input className="form-control w-auto" placeholder="Search…" value={filter} onChange={e=>setFilter(e.target.value)} />
@@ -89,12 +90,6 @@ export default function CustomersList(){
       {directMode && cloudStatus?.code === 'permission-denied' && (
         <div className="alert alert-danger" role="alert">
           Firestore denied read access (permission-denied). Sign in or relax rules for dev.
-        </div>
-      )}
-
-      {false && (
-        <div className="alert alert-info small" role="alert">
-          Read-only mode: data is loaded directly from Firebase. Editing and deleting are disabled.
         </div>
       )}
 
@@ -107,7 +102,6 @@ export default function CustomersList(){
         </div>
       )}
 
-      {/* Client-side import from Firebase (only visible when direct mode + auth) */}
       {directMode && requireAuth && (
       <div className="card mb-4">
         <div className="card-header d-flex justify-content-between align-items-center">
@@ -116,7 +110,7 @@ export default function CustomersList(){
             className="btn btn-outline-success"
             onClick={importFromFirebase}
             disabled={importing}
-            title="ייבוא ישיר מפיירסטור"
+            title="Runs read-only import from Firestore"
           >
             {importing && (
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -146,14 +140,13 @@ export default function CustomersList(){
             </tr>
           </thead>
           <tbody>
-            {filtered.map(c=>(
+            {filtered.map(c=> (
               <tr key={c.id}>
                 {/* Logo */}
                 <td>
                   {c.logoUrl
                     ? <CloudImage src={c.logoUrl} alt="" className="rounded border" style={{width:40,height:40,objectFit:'cover'}}/>
-                    : <div className="rounded border bg-light" style={{width:40,height:40}}/>
-                  }
+                    : <UserLogo uid={c.firebaseUid || c.id} />}
                 </td>
 
                 {/* Name (link) */}
@@ -164,21 +157,9 @@ export default function CustomersList(){
                 <td>{c.city||'—'}</td>
                 <td><span className="badge text-bg-secondary">{c.tag||'—'}</span></td>
 
-                {/* Order images: thumbnails + counter */}
+                {/* Order images from Storage by UID */}
                 <td>
-                  {Array.isArray(c.orderImageUrls) && c.orderImageUrls.length > 0 ? (
-                    <div className="d-flex align-items-center gap-2">
-                      <div className="d-flex gap-1">
-                        {c.orderImageUrls.slice(0,3).map((u,i)=>(
-                          <CloudImage key={i} src={u} alt="" className="rounded border"
-                                      style={{width:28,height:28,objectFit:'cover'}}/>
-                        ))}
-                      </div>
-                      {c.orderImageUrls.length > 3 && (
-                        <span className="badge text-bg-light">+{c.orderImageUrls.length - 3}</span>
-                      )}
-                    </div>
-                  ) : <span className="text-muted">—</span>}
+                  <UserOrderImages uid={c.firebaseUid || c.id} max={3} />
                 </td>
 
                 {/* Actions */}
@@ -213,6 +194,4 @@ export default function CustomersList(){
     </>
   );
 }
-
-
 

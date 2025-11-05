@@ -20,4 +20,9 @@ export class SyncController {
   async syncOrders() {
     return this.fb.syncOrdersFromFirestore();
   }
+
+  @Get('staff-claims')
+  async syncStaffClaims() {
+    return this.fb.syncStaffClaimsFromFirestore();
+  }
 }

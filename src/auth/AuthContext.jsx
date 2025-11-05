@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import auth, { provider } from '@/firebase/client';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getDb } from '@/lib/firebaseClient';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
-const Ctx = createContext({ user: null, loading: true, login: async () => {}, logout: async () => {}, loginEmail: async (_e,_p)=>{}, register: async (_name,_e,_p)=>{} });
+const Ctx = createContext({ user: null, loading: true, isActiveStaff: false, role: null, login: async () => {}, logout: async () => {}, loginEmail: async (_e,_p)=>{}, register: async (_name,_e,_p)=>{} });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isActiveStaff, setIsActiveStaff] = useState(false);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     if (!auth) { setLoading(false); return; }
@@ -29,8 +31,17 @@ export function AuthProvider({ children }) {
                 active: true,
                 updatedAt: serverTimestamp(),
               }, { merge: true });
+              const snap = await getDoc(doc(db, 'staff', u.uid));
+              if (snap.exists()) {
+                const d = snap.data() || {};
+                setIsActiveStaff(!!d.active || d.status === 'active');
+                setRole(d.role || null);
+              } else {
+                setIsActiveStaff(false);
+                setRole(null);
+              }
             }
-          } catch {}
+          } catch { setIsActiveStaff(false); setRole(null); }
         }
       } catch {}
     });
@@ -40,6 +51,8 @@ export function AuthProvider({ children }) {
   const api = useMemo(() => ({
     user,
     loading,
+    isActiveStaff,
+    role,
     login: async () => { if (!auth) return; await signInWithPopup(auth, provider); },
     logout: async () => { if (!auth) return; await signOut(auth); },
     loginEmail: async (email, password) => {
@@ -65,7 +78,7 @@ export function AuthProvider({ children }) {
       } catch {}
       await cred.user.getIdToken(true);
     },
-  }), [user, loading]);
+  }), [user, loading, isActiveStaff, role]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
