@@ -5,7 +5,7 @@ import CustomersList from "../features/customers/CustomersList.jsx";
 import CustomerDetails from "../features/customers/CustomerDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
 import Pipeline from "../features/pipeline/Pipeline.jsx";
-import AuthGate from "../auth/authGate.jsx";
+// Auth disabled: rendering pages directly without AuthGate
 
 function Shell({ children }) {
   return (
@@ -16,12 +16,10 @@ function Shell({ children }) {
   );
 }
 
-const requireAuth = String(import.meta.env.VITE_REQUIRE_AUTH || '').toLowerCase() === 'true';
-
 function page(el) {
   return (
     <Shell>
-      {requireAuth ? <AuthGate>{el}</AuthGate> : el}
+      {el}
     </Shell>
   );
 }

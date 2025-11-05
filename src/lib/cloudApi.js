@@ -2,12 +2,26 @@
 // Read data directly from Firebase (client SDK) using env config
 import { collection, getDocs } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured, getFirebaseApp } from './firebaseClient';
-import { getAuth } from 'firebase/auth';
 
 const USERS_COLL = import.meta.env.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
 const ORDERS_COLL = import.meta.env.VITE_FIREBASE_ORDERS_COLLECTION || 'orders_prod';
 const REMOTE_CUSTOMERS_URL = import.meta.env.VITE_REMOTE_CUSTOMERS_URL || '';
 const REMOTE_ORDERS_URL = import.meta.env.VITE_REMOTE_ORDERS_URL || '';
+const REQUIRE_AUTH = String(import.meta.env.VITE_REQUIRE_AUTH || '').toLowerCase() === 'true';
+
+// Track last error to surface meaningful UI messages in read-only mode
+let lastCloudError = null; // { code?: string, message?: string, at: number }
+export function getCloudStatus() {
+  return lastCloudError ? { ...lastCloudError } : null;
+}
+function setCloudError(err) {
+  try {
+    const code = err?.code || /permission|denied/i.test(String(err)) ? 'permission-denied' : (err?.status ? String(err.status) : undefined);
+    const message = err?.message || String(err);
+    lastCloudError = { code, message, at: Date.now() };
+  } catch { lastCloudError = { message: String(err), at: Date.now() }; }
+}
+function clearCloudError() { lastCloudError = null; }
 
 export function cloudAvailable() {
   if (REMOTE_CUSTOMERS_URL || REMOTE_ORDERS_URL) return true;
@@ -15,9 +29,13 @@ export function cloudAvailable() {
 }
 
 async function getIdTokenOptional(timeoutMs = 3000) {
+  // If auth isn't required, avoid touching Firebase Auth entirely.
+  if (!REQUIRE_AUTH) return null;
   try {
     const app = getFirebaseApp();
     if (!app) return null;
+    // Lazy-load auth only when needed to prevent unintended network calls
+    const { getAuth } = await import('firebase/auth');
     const auth = getAuth(app);
     if (auth?.currentUser) return await auth.currentUser.getIdToken();
     const user = await new Promise((resolve) => {
@@ -56,43 +74,54 @@ function toMs(v) {
 }
 
 export async function listCloudCustomers() {
-  if (REMOTE_CUSTOMERS_URL) {
-    const payload = await fetchJson(REMOTE_CUSTOMERS_URL);
-    const rows = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.customers)
-        ? payload.customers
-        : [];
-    return rows.map((row, idx) => normalizeCustomer(row, idx));
+  try {
+    clearCloudError();
+    if (REMOTE_CUSTOMERS_URL) {
+      const payload = await fetchJson(REMOTE_CUSTOMERS_URL);
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.customers)
+          ? payload.customers
+          : [];
+      return rows.map((row, idx) => normalizeCustomer(row, idx));
+    }
+    const db = getDb();
+    if (!db) return [];
+    const snap = await getDocs(collection(db, USERS_COLL));
+    const list = [];
+    snap.forEach((doc, idx) => {
+      list.push(normalizeCustomer({ id: doc.id, ...(doc.data() || {}) }, idx));
+    });
+    return list;
+  } catch (e) {
+    setCloudError(e);
+    throw e;
   }
-  const db = getDb();
-  if (!db) return [];
-  const snap = await getDocs(collection(db, USERS_COLL));
-  const list = [];
-  snap.forEach((doc, idx) => {
-    list.push(normalizeCustomer({ id: doc.id, ...(doc.data() || {}) }, idx));
-  });
-  return list;
 }
 
 export async function listCloudOrders() {
-  if (REMOTE_ORDERS_URL) {
-    const payload = await fetchJson(REMOTE_ORDERS_URL);
-    const rows = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.orders)
-        ? payload.orders
-        : [];
-    return rows.map((row, idx) => normalizeOrder(row, idx));
+  try {
+    if (REMOTE_ORDERS_URL) {
+      const payload = await fetchJson(REMOTE_ORDERS_URL);
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.orders)
+          ? payload.orders
+          : [];
+      return rows.map((row, idx) => normalizeOrder(row, idx));
+    }
+    const db = getDb();
+    if (!db) return [];
+    const snap = await getDocs(collection(db, ORDERS_COLL));
+    const list = [];
+    snap.forEach((doc, idx) => {
+      list.push(normalizeOrder({ id: doc.id, ...(doc.data() || {}) }, idx));
+    });
+    return list;
+  } catch (e) {
+    setCloudError(e);
+    throw e;
   }
-  const db = getDb();
-  if (!db) return [];
-  const snap = await getDocs(collection(db, ORDERS_COLL));
-  const list = [];
-  snap.forEach((doc, idx) => {
-    list.push(normalizeOrder({ id: doc.id, ...(doc.data() || {}) }, idx));
-  });
-  return list;
 }
 
 function normalizeCustomer(data = {}, index = 0) {

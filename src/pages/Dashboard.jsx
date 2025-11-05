@@ -4,6 +4,19 @@ import * as api from "../lib/localApi";
 import { cloudAvailable, listCloudOrders } from "../lib/cloudApi";
 import { fetchCrmOrders } from "../lib/functionsApi";
 import { Modal } from 'react-bootstrap';
+
+// Mini pipeline (temporary, client-only) configuration
+const PIPELINE_STAGES = ['received','graphics','production','shipped'];
+const PIPELINE_LABEL = {
+  received: 'ההזמנה התקבלה',
+  graphics: 'מצב גרפיקה',
+  production: 'מצב ביצוע',
+  shipped: 'נשלח ליעדו',
+};
+const PIPELINE_STORAGE_KEY = 'crm:order-pipeline';
+function loadPipelineStageMap(){
+  try { return JSON.parse(localStorage.getItem(PIPELINE_STORAGE_KEY) || '{}') || {}; } catch { return {}; }
+}
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 export default function Dashboard() {
@@ -101,6 +114,17 @@ export default function Dashboard() {
       if (map[key]) { map[key].count += 1; map[key].amount += Number(o.amount || 0); }
     });
     return items;
+  }, [orders]);
+
+  // Compute mini pipeline columns from orders + localStorage stage map
+  const miniPipeline = useMemo(() => {
+    const cols = Object.fromEntries(PIPELINE_STAGES.map(s => [s, []]));
+    const stageMap = loadPipelineStageMap();
+    for (const o of orders || []) {
+      const st = PIPELINE_STAGES.includes(stageMap[o.id]) ? stageMap[o.id] : 'received';
+      cols[st].push(o);
+    }
+    return cols;
   }, [orders]);
 
   async function onSyncUsers() {
@@ -243,25 +267,21 @@ export default function Dashboard() {
             <div className="card-header fw-semibold">Pipeline <span className="text-muted small">(overview)</span></div>
             <div className="card-body">
               <div className="kanban-mini">
-                <div className="d-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                  <div>
-                    <div className="text-muted small mb-1">Lead</div>
-                    <div className="cell mb-2" />
-                    <div className="cell mb-2" />
-                    <div className="cell" />
-                  </div>
-                  <div>
-                    <div className="text-muted small mb-1">Qualified</div>
-                    <div className="cell mb-2" />
-                    <div className="cell mb-2" />
-                    <div className="cell" />
-                  </div>
-                  <div>
-                    <div className="text-muted small mb-1">Proposal</div>
-                    <div className="cell mb-2" />
-                    <div className="cell mb-2" />
-                    <div className="cell" />
-                  </div>
+                <div className="d-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                  {PIPELINE_STAGES.map(stage => (
+                    <div key={stage}>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <div className="text-muted small">{PIPELINE_LABEL[stage] || stage}</div>
+                        <span className="badge text-bg-light">{miniPipeline[stage]?.length || 0}</span>
+                      </div>
+                      {(miniPipeline[stage] || []).slice(0,3).map(o => (
+                        <div key={o.id} className="cell mb-2" />
+                      ))}
+                      {((miniPipeline[stage] || []).length > 3) && (
+                        <div className="text-center text-muted small">+{(miniPipeline[stage].length - 3)}</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

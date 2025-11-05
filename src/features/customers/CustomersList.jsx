@@ -1,7 +1,7 @@
 // src/features/customers/CustomersList.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { listCustomers, createCustomer, updateCustomer, removeCustomer } from '@/lib/localApi';
-import { cloudAvailable, listCloudCustomers, listCloudOrders, latestOrderTimestampByUser } from '@/lib/cloudApi';
+import { cloudAvailable, listCloudCustomers, listCloudOrders, latestOrderTimestampByUser, getCloudStatus } from '@/lib/cloudApi';
 import CloudImage from '@/components/CloudImage.jsx';
 import CustomerForm from './CustomerForm';
 
@@ -15,6 +15,7 @@ export default function CustomersList(){
 
   async function refresh(){ setRows(await listCustomers()); }
   useEffect(()=>{ refresh(); }, []);
+  const cloudStatus = getCloudStatus();
 
   const filtered = useMemo(()=>{
     const f = filter.toLowerCase();
@@ -90,10 +91,16 @@ export default function CustomersList(){
 
   return (
     <>
+      {/* DiagFirebase widget removed from Customers list */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="m-0">Customers</h1>
         <input className="form-control w-auto" placeholder="Search…" value={filter} onChange={e=>setFilter(e.target.value)} />
       </div>
+      {directMode && cloudStatus?.code === 'permission-denied' && (
+        <div className="alert alert-danger" role="alert">
+          Firestore denied read access (permission-denied). Sign in or relax rules for dev.
+        </div>
+      )}
 
       {directMode && (
         <div className="alert alert-info small" role="alert">
