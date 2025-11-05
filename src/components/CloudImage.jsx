@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react';
 import { getBucket } from '@/lib/firebaseClient';
 import { getDownloadURL, ref } from 'firebase/storage';
 
+const DIRECT_MODE = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
+
 function absoluteFromUploads(u) {
   try {
+    if (DIRECT_MODE) return u;
     const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/?api\/?$/, '');
     return `${base}${u}`;
   } catch { return u; }
@@ -54,4 +57,3 @@ export default function CloudImage({ src, alt = '', ...imgProps }) {
   if (!url) return null;
   return <img src={url} alt={alt} {...imgProps} />;
 }
-

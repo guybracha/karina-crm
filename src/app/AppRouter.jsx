@@ -5,6 +5,9 @@ import CustomersList from "../features/customers/CustomersList.jsx";
 import CustomerDetails from "../features/customers/CustomerDetails.jsx";
 import NotFound from "../pages/NotFound.jsx";
 import Pipeline from "../features/pipeline/Pipeline.jsx";
+import RequireAuth from "../auth/RequireAuth.jsx";
+import Login from "../pages/Login.jsx";
+import Register from "../pages/Register.jsx";
 // Auth disabled: rendering pages directly without AuthGate
 
 function Shell({ children }) {
@@ -25,10 +28,12 @@ function page(el) {
 }
 
 const router = createBrowserRouter([
-  { path: "/", element: page(<Dashboard />) },
-  { path: "/customers", element: page(<CustomersList />) },
-  { path: "/customers/:id", element: page(<CustomerDetails />) },
-  { path: "/pipeline", element: page(<Pipeline />) },
+  { path: "/login", element: page(<Login />) },
+  { path: "/register", element: page(<Register />) },
+  { path: "/", element: page(<RequireAuth><Dashboard /></RequireAuth>) },
+  { path: "/customers", element: page(<RequireAuth><CustomersList /></RequireAuth>) },
+  { path: "/customers/:id", element: page(<RequireAuth><CustomerDetails /></RequireAuth>) },
+  { path: "/pipeline", element: page(<RequireAuth><Pipeline /></RequireAuth>) },
   { path: "*", element: page(<NotFound />) },
 ]);
 

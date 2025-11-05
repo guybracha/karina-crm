@@ -38,20 +38,14 @@ export default function CustomerDetails(){
           <h1 className="m-0">{cust.name}</h1>
         </div>
         <div className="d-flex gap-2">
-          {directMode ? (
-            <span className="text-muted small">Read only</span>
-          ) : (
-            <>
-              <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
-              <button className="btn btn-outline-danger" onClick={async()=>{
-                if(confirm('Delete?')){ await removeCustomer(id); nav('/customers'); }
-              }}>Delete</button>
-            </>
-          )}
+          <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
+          <button className="btn btn-outline-danger" onClick={async()=>{
+            if(confirm('Delete?')){ await removeCustomer(id); nav('/customers'); }
+          }}>Delete</button>
         </div>
       </div>
 
-      {directMode || !edit ? (
+      {!edit ? (
         <div className="card">
           <div className="card-body">
             <p><strong>Email:</strong> {cust.email||'—'}</p>

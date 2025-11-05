@@ -115,7 +115,7 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
             {!!selected.size && (
               <button type="button" className="btn btn-outline-secondary" onClick={clearSelection}>Clear</button>
             )}
-            {!directMode && (
+            {
               <input
                 ref={inputRef}
                 type="file"
@@ -125,7 +125,7 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
                 onChange={handleUpload}
                 disabled={busy}
               />
-            )}
+            }
           </div>
         </div>
 
@@ -144,11 +144,11 @@ export default function CustomerPhotos({ id, urls = [], onChange }) {
                     <a className="btn btn-sm btn-outline-secondary" href={resolveImageUrl(src)} target="_blank" rel="noreferrer" download>
                       Download
                     </a>
-                    {!directMode && (
+                    {
                       <button type="button" className="btn btn-sm btn-danger" onClick={() => removeAt(i)}>
                         Delete
                       </button>
-                    )}
+                    }
                   </div>
                 </div>
               </div>

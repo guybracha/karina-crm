@@ -33,23 +33,18 @@ export default function CustomersList(){
   async function onDelete(id){ if(confirm('Delete?')) { await removeCustomer(id); await refresh(); } }
 
   async function importFromFirebase(){
-    if(!directMode){ alert('Direct Firebase import is disabled. Use server sync from Dashboard.'); return; }
-    if(!requireAuth){ alert('Direct Firebase import requires login enabled. Set VITE_REQUIRE_AUTH=true or use server sync.'); return; }
+    if(!directMode){ alert('Enable direct mode (VITE_USE_FIREBASE_DIRECT=true).'); return; }
     if(!cloudAvailable()){ alert('Firebase config missing. Check src/.env'); return; }
     setImporting(true);
     let created=0, updated=0, scanned=0;
     try{
       const cloud = await listCloudCustomers();
       scanned = Array.isArray(cloud) ? cloud.length : 0;
-
-      // Read local customers directly from server API to avoid direct-mode override
-      const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api').replace(/\/$/, '');
       let local = [];
-      try { const res = await fetch(`${API_URL}/customers`); if(res.ok) local = await res.json(); } catch {}
-
+      try { local = await listCloudCustomers(); } catch {}
+      const byId = new Map(local.map(x=>[String(x.id), x]));
       const byUid = new Map(local.filter(x=>x.firebaseUid).map(x=>[String(x.firebaseUid), x]));
       const byEmail = new Map(local.filter(x=>x.email).map(x=>[String(x.email).toLowerCase(), x]));
-
       for(const c of cloud){
         const uid = c.firebaseUid || c.uid || c.id;
         const email = (c.email||'').toLowerCase();
@@ -64,28 +59,23 @@ export default function CustomersList(){
           firebaseUid: uid || undefined,
           lastOrderAt: c.lastOrderAt || undefined,
         };
-        const target = (uid && byUid.get(String(uid))) || (email && byEmail.get(email)) || null;
+        const target = byId.get(String(c.id)) || (uid && byUid.get(String(uid))) || (email && byEmail.get(email)) || null;
         try{
           if(target){ await updateCustomer(target.id, payload); updated++; }
           else { await createCustomer(payload); created++; }
         } catch {}
       }
-
-      // Enrich lastOrderAt from orders (optional)
       try{
         const orders = await listCloudOrders();
         const latest = latestOrderTimestampByUser(orders);
         for(const [uid, when] of latest.entries()){
-          const t = byUid.get(String(uid));
+          const t = byUid.get(String(uid)) || byId.get(String(uid));
           if(!t) continue;
           await updateCustomer(t.id, { lastOrderAt: when });
         }
       } catch {}
-
-      alert(`ייבוא הסתיים\nנסרקו: ${scanned}\nנוצרו: ${created}\nעודכנו: ${updated}`);
+      alert(`Imported: scanned=${scanned}, created=${created}, updated=${updated}`);
       await refresh();
-      const direct = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
-      if(direct){ console.warn('Direct Firebase mode is ON. UI may show cloud data; set VITE_USE_FIREBASE_DIRECT=false to view server data.'); }
     } finally { setImporting(false); }
   }
 
@@ -102,13 +92,13 @@ export default function CustomersList(){
         </div>
       )}
 
-      {directMode && (
+      {false && (
         <div className="alert alert-info small" role="alert">
           Read-only mode: data is loaded directly from Firebase. Editing and deleting are disabled.
         </div>
       )}
 
-      {!directMode && (
+      {true && (
         <div className="card mb-4">
           <div className="card-header">Add Customer</div>
           <div className="card-body">
@@ -135,7 +125,7 @@ export default function CustomersList(){
           </button>
         </div>
         <div className="card-body text-muted small">
-          Reads directly from Firestore in the browser and upserts into the local server database.
+          Reads directly from Firestore and upserts into Firestore (no local server).
         </div>
       </div>
 
@@ -193,14 +183,10 @@ export default function CustomersList(){
 
                 {/* Actions */}
                 <td className="text-end">
-                  {directMode ? (
-                    <span className="text-muted small">Read only</span>
-                  ) : (
-                    <>
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={()=>setEditing(c)}>Edit</button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={()=>onDelete(c.id)}>Delete</button>
-                    </>
-                  )}
+                  <>
+                    <button className="btn btn-sm btn-outline-primary me-2" onClick={()=>setEditing(c)}>Edit</button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={()=>onDelete(c.id)}>Delete</button>
+                  </>
                 </td>
               </tr>
             ))}
@@ -209,7 +195,7 @@ export default function CustomersList(){
         </table>
       </div>
 
-      {!directMode && editing && (
+      {editing && (
         <div className="card mt-4">
           <div className="card-header d-flex justify-content-between align-items-center">
             <strong>Edit: {editing.name}</strong>
@@ -227,3 +213,6 @@ export default function CustomersList(){
     </>
   );
 }
+
+
+

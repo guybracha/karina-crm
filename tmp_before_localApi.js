@@ -2,38 +2,12 @@
 import axios from 'axios';
 import { cloudAvailable, listCloudCustomers } from './cloudApi';
 import { listCloudOrders } from './cloudApi';
-import { getDb, getBucket } from './firebaseClient';
-import {
-  collection,
-  addDoc,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove,
-} from 'firebase/firestore';
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
-
-// When true, prefer Firebase and avoid any server HTTP calls
-const DIRECT_MODE = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
 const http = axios.create({ baseURL: API_URL });
 
-const USERS_COLL = import.meta.env.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
-function clean(obj) {
-  const out = {};
-  for (const [k, v] of Object.entries(obj || {})) {
-    if (v !== undefined) out[k] = v;
-  }
-  return out;
-}
-
 export async function listCustomers() {
-  const preferCloud = DIRECT_MODE;
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
   if (preferCloud && cloudAvailable()) {
     try { return await listCloudCustomers(); } catch {}
   }
@@ -51,14 +25,6 @@ export async function listCustomers() {
 }
 
 export async function getCustomer(id) {
-  // In direct Firebase mode, try cloud first and avoid HTTP entirely
-  if (DIRECT_MODE && cloudAvailable()) {
-    try {
-      const list = await listCloudCustomers();
-      return list.find((c) => String(c.id) === String(id)) || null;
-    } catch {}
-    return null;
-  }
   try {
     const { data } = await http.get(`/customers/${id}`);
     return data;
@@ -75,81 +41,22 @@ export async function getCustomer(id) {
 }
 
 export async function createCustomer(payload) {
-  if (DIRECT_MODE) {
-    const db = getDb();
-    if (!db) throw new Error('Firebase not configured');
-    const docData = clean({
-      name: payload.name,
-      email: payload.email || null,
-      phone: payload.phone || null,
-      city: payload.city || null,
-      tag: payload.tag || null,
-      notes: payload.notes || null,
-      logoUrl: payload.logoUrl || null,
-      firebaseUid: payload.firebaseUid || null,
-      orderImageUrls: Array.isArray(payload.orderImageUrls) ? payload.orderImageUrls : [],
-      lastOrderAt: payload.lastOrderAt || null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    const res = await addDoc(collection(db, USERS_COLL), docData);
-    return { id: res.id };
-  }
   const { data } = await http.post('/customers', payload);
   // Keep return shape minimal to not break callers
   return { id: data?.id };
 }
 
 export async function updateCustomer(id, patch) {
-  if (DIRECT_MODE) {
-    const db = getDb();
-    if (!db) throw new Error('Firebase not configured');
-    const refDoc = doc(db, USERS_COLL, String(id));
-    const data = clean({ ...patch, updatedAt: serverTimestamp() });
-    // Firestore doesn't accept undefined; ensure arrays are arrays
-    if (data.orderImageUrls && !Array.isArray(data.orderImageUrls)) delete data.orderImageUrls;
-    await updateDoc(refDoc, data);
-    const snap = await getDoc(refDoc);
-    return { id, ...(snap.data() || {}) };
-  }
   const { data } = await http.put(`/customers/${id}`, patch);
   return data;
 }
 
 export async function removeCustomer(id) {
-  if (DIRECT_MODE) {
-    const db = getDb();
-    if (!db) throw new Error('Firebase not configured');
-    await deleteDoc(doc(db, USERS_COLL, String(id)));
-    return;
-  }
   await http.delete(`/customers/${id}`);
 }
 
 // Multipart photos upload: files is FileList or File[]
 export async function uploadCustomerPhotos(id, files) {
-  if (DIRECT_MODE) {
-    const bucket = getBucket();
-    const db = getDb();
-    if (!bucket || !db) return [];
-    const list = Array.from(files || []);
-    if (!list.length) return [];
-    const uploaded = [];
-    for (const f of list) {
-      const safeName = (f?.name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `customers/${id}/photos/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
-      const r = ref(bucket, path);
-      await uploadBytes(r, f);
-      uploaded.push(path);
-    }
-    try {
-      await updateDoc(doc(db, USERS_COLL, String(id)), {
-        orderImageUrls: arrayUnion(...uploaded),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
-    return uploaded;
-  }
   const list = Array.from(files || []);
   if (!list.length) return [];
   const fd = new FormData();
@@ -160,33 +67,11 @@ export async function uploadCustomerPhotos(id, files) {
 }
 
 export async function listCustomerPhotos(id) {
-  if (DIRECT_MODE) {
-    try {
-      const db = getDb();
-      if (!db) return [];
-      const snap = await getDoc(doc(db, USERS_COLL, String(id)));
-      const urls = Array.isArray(snap.data()?.orderImageUrls) ? snap.data().orderImageUrls : [];
-      return urls.map((u) => ({ id: String(u) }));
-    } catch { return []; }
-  }
   const { data } = await http.get(`/customers/${id}/photos`);
   return Array.isArray(data) ? data : [];
 }
 
 export async function removeCustomerPhoto(id, photoId) {
-  if (DIRECT_MODE) {
-    const bucket = getBucket();
-    const db = getDb();
-    if (!bucket || !db) return;
-    try { await deleteObject(ref(bucket, String(photoId))); } catch {}
-    try {
-      await updateDoc(doc(db, USERS_COLL, String(id)), {
-        orderImageUrls: arrayRemove(String(photoId)),
-        updatedAt: serverTimestamp(),
-      });
-    } catch {}
-    return;
-  }
   await http.delete(`/customers/${id}/photos/${photoId}`);
 }
 
@@ -194,8 +79,6 @@ export async function removeCustomerPhoto(id, photoId) {
 export function resolveImageUrl(u) {
   if (!u) return u;
   if (typeof u === 'string' && u.startsWith('/uploads/')) {
-    // In direct mode, avoid pointing to backend host entirely
-    if (DIRECT_MODE) return u;
     const base = API_URL.replace(/\/?api\/?$/, '');
     return `${base}${u}`;
   }
@@ -203,14 +86,6 @@ export function resolveImageUrl(u) {
 }
 
 export async function uploadCustomerLogo(id, file) {
-  if (DIRECT_MODE) {
-    const bucket = getBucket();
-    if (!bucket || !file) return '';
-    const safeName = (file?.name || 'logo').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `customers/${id}/logo/${Date.now()}-${safeName}`;
-    await uploadBytes(ref(bucket, path), file);
-    return path;
-  }
   const fd = new FormData();
   fd.append('file', file);
   const { data } = await http.post(`/customers/${id}/logo`, fd);
@@ -219,7 +94,7 @@ export async function uploadCustomerLogo(id, file) {
 
 // Tasks API
 export async function listTasks() {
-  const preferCloud = DIRECT_MODE;
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
   if (preferCloud && cloudAvailable()) {
     try { return await tasksFromOrders(); } catch { return []; }
   }
@@ -263,25 +138,22 @@ async function tasksFromOrders() {
 }
 
 export async function createTask(task) {
-  if (DIRECT_MODE) throw new Error('Read-only in Firebase direct mode');
   const { data } = await http.post('/tasks', task);
   return data;
 }
 
 export async function updateTask(id, patch) {
-  if (DIRECT_MODE) throw new Error('Read-only in Firebase direct mode');
   const { data } = await http.put(`/tasks/${id}`, patch);
   return data;
 }
 
 export async function removeTask(id) {
-  if (DIRECT_MODE) throw new Error('Read-only in Firebase direct mode');
   await http.delete(`/tasks/${id}`);
 }
 
 // Firebase sync endpoints
 export async function firebaseSyncStatus() {
-  const preferCloud = DIRECT_MODE;
+  const preferCloud = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
   if (preferCloud) return false; // no backend needed
   try {
     const { data } = await http.get('/sync/firebase/status');
@@ -292,13 +164,12 @@ export async function firebaseSyncStatus() {
 }
 
 export async function syncFirebaseUsers() {
-  if (DIRECT_MODE) return { ok: false };
   const { data } = await http.get('/sync/firebase/users');
   return data;
 }
 
 export async function syncFirebaseOrders() {
-  if (DIRECT_MODE) return { ok: false };
   const { data } = await http.get('/sync/firebase/orders');
   return data;
 }
+

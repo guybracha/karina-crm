@@ -2,6 +2,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
 function readConfig() {
   const cfg = {
@@ -24,6 +25,25 @@ export function getFirebaseApp() {
   const cfg = readConfig();
   if (!cfg) return null;
   app = getApps().length ? getApps()[0] : initializeApp(cfg);
+
+  // Initialize App Check (reCAPTCHA v3 or Enterprise) if configured
+  try {
+    const siteKey = import.meta.env.VITE_APPCHECK_SITE_KEY || '';
+    const useEnterprise = String(import.meta.env.VITE_APPCHECK_ENTERPRISE || '').toLowerCase() === 'true';
+    if (siteKey) {
+      if (typeof window !== 'undefined' && import.meta.env.MODE !== 'production') {
+        // Enable debug token for local dev if provided (or auto-generate)
+        // eslint-disable-next-line no-undef
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
+      }
+      initializeAppCheck(app, {
+        provider: useEnterprise
+          ? new ReCaptchaEnterpriseProvider(siteKey)
+          : new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    }
+  } catch {}
   return app;
 }
 
