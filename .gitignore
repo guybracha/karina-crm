@@ -30,3 +30,7 @@ server/uploads
 
 serviceAccountKey.json
 /tools
+
+tmp_cd.txt
+tmp_requreauth.txt
+firestore.rules
