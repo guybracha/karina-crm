@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import auth, { provider } from '@/firebase/client';
-import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { getDb } from '@/lib/firebaseClient';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [isActiveStaff, setIsActiveStaff] = useState(false);
   const [role, setRole] = useState(null);
+  const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
 
   useEffect(() => {
     if (!auth) { setLoading(false); return; }
@@ -53,7 +54,17 @@ export function AuthProvider({ children }) {
     loading,
     isActiveStaff,
     role,
-    login: async () => { if (!auth) return; await signInWithPopup(auth, provider); },
+    login: async () => {
+      if (!auth) return;
+      if (isElectron && window.electronAPI?.googleOAuth) {
+        const tokens = await window.electronAPI.googleOAuth();
+        if (!tokens?.id_token) throw new Error('Google OAuth did not return id_token');
+        const cred = GoogleAuthProvider.credential(tokens.id_token);
+        await signInWithCredential(auth, cred);
+        return;
+      }
+      await signInWithPopup(auth, provider);
+    },
     logout: async () => { if (!auth) return; await signOut(auth); },
     loginEmail: async (email, password) => {
       if (!auth) return; await signInWithEmailAndPassword(auth, email, password);
@@ -78,7 +89,7 @@ export function AuthProvider({ children }) {
       } catch {}
       await cred.user.getIdToken(true);
     },
-  }), [user, loading, isActiveStaff, role]);
+  }), [user, loading, isActiveStaff, role, isElectron]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

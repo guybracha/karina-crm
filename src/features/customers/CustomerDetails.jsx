@@ -21,6 +21,8 @@ export default function CustomerDetails(){
   if(cust===null) return <p className="text-muted">Loading…</p>;
   if(!cust) return <p className="text-danger">Customer not found.</p>;
 
+  const displayTitle = cust.displayName || cust.name || cust.email || cust.firebaseUid || 'Customer';
+
   return (
     <>
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -36,7 +38,7 @@ export default function CustomerDetails(){
           ) : (
             <div className="rounded border bg-light" style={{ width: 56, height: 56 }} />
           )}
-          <h1 className="m-0">{cust.name}</h1>
+          <h1 className="m-0">{displayTitle}</h1>
         </div>
         <div className="d-flex gap-2">
           <button className="btn btn-outline-primary" onClick={()=>setEdit(v=>!v)}>{edit?'Close edit':'Edit'}</button>
@@ -99,7 +101,7 @@ export default function CustomerDetails(){
       {/* Logo modal */}
       <Modal show={showLogo} onHide={()=>setShowLogo(false)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>{cust.name} – Logo</Modal.Title>
+          <Modal.Title>{displayTitle} – Logo</Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center">
           {cust.logoUrl && (

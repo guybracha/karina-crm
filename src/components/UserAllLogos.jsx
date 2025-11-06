@@ -7,6 +7,7 @@ export default function UserAllLogos({ uid, max = 48 }) {
   const [urls, setUrls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -72,14 +73,56 @@ export default function UserAllLogos({ uid, max = 48 }) {
   if (error) return <div className="text-danger small">{error}</div>;
   if (!urls.length) return <div className="text-muted small">No images found</div>;
 
+  function filenameFromUrl(url) {
+    try {
+      const parsed = new URL(url);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const last = segments.pop() || 'logo';
+      return decodeURIComponent(last.split('?')[0].split('#')[0]) || 'logo';
+    } catch {
+      return 'logo';
+    }
+  }
+
+  async function handleDownload(url) {
+    try {
+      setDownloading(url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filenameFromUrl(url);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    } catch (err) {
+      console.error('Failed to download image', err);
+      alert('Failed to download image. Please try again.');
+    } finally {
+      setDownloading('');
+    }
+  }
+
   return (
-    <div className="d-flex flex-wrap gap-2">
+    <div className="d-flex flex-wrap gap-3">
       {urls.map((u, i) => (
-        <a key={i} href={u} target="_blank" rel="noreferrer" download>
-          <img src={u} alt="" className="rounded border" style={{ width: 72, height: 72, objectFit: 'cover' }} />
-        </a>
+        <div key={i} className="position-relative" style={{ width: 80 }}>
+          <a href={u} target="_blank" rel="noreferrer" className="d-block">
+            <img src={u} alt="" className="rounded border w-100" style={{ height: 72, objectFit: 'cover' }} />
+          </a>
+          <button
+            type="button"
+            className="btn btn-sm btn-light border position-absolute top-0 end-0 m-1"
+            onClick={() => handleDownload(u)}
+            disabled={downloading === u}
+            title="Download image"
+          >
+            {downloading === u ? '…' : '↓'}
+          </button>
+        </div>
       ))}
     </div>
   );
 }
-

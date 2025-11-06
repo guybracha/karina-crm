@@ -127,10 +127,13 @@ export async function listCloudOrders() {
 }
 
 function normalizeCustomer(data = {}, index = 0) {
-  const name =
-    data.name ||
+  const preferredName =
+    data.displayName ||
     data.fullName ||
     [data.firstName, data.lastName].filter(Boolean).join(' ') ||
+    data.name;
+  const name =
+    preferredName ||
     data.email ||
     data.phone ||
     'Customer';
@@ -146,6 +149,7 @@ function normalizeCustomer(data = {}, index = 0) {
   return {
     id: String(idCandidate ?? `remote-${index}`),
     name,
+    displayName: preferredName || undefined,
     email: data.email || data.mail || undefined,
     phone: data.phone || data.phoneNumber || undefined,
     city: data.city || data.addressCity || undefined,
