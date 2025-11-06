@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listCustomers } from '@/lib/localApi.js';
-import { createOrderForUser } from '@/services/orders';
+import { createCrmOrderForUser } from '@/services/ordersExtra';
 import { useNavigate } from 'react-router-dom';
 
 export default function OrderCreate() {
@@ -29,10 +29,14 @@ export default function OrderCreate() {
     try {
       setSaving(true); setError('');
       const items = (form.items || []).map((it) => ({ productId: String(it.productId || 'item'), qty: Number(it.qty || 1), unitPrice: Number(it.unitPrice || 0) }));
-      await createOrderForUser(String(form.customerId), items, form.status, {}, form.notes || '');
+      const selected = customers.find((c) => String(c.id) === String(form.customerId));
+      const uid = selected?.firebaseUid ? String(selected.firebaseUid) : String(form.customerId);
+      await createCrmOrderForUser(uid, items, form.status, {}, form.notes || '');
       nav('/orders');
     } catch (e) {
-      setError(e?.message || 'Failed to create order');
+      const code = (e && (e.code || e.errorCode)) ? String(e.code || e.errorCode) : '';
+      const msg = e?.message ? String(e.message) : 'Failed to create order';
+      setError([code && `(${code})`, msg].filter(Boolean).join(' '));
     } finally { setSaving(false); }
   }
 
@@ -96,7 +100,7 @@ export default function OrderCreate() {
                 })}
                 <div className="d-flex justify-content-between align-items-center">
                   <button type="button" className="btn btn-outline-secondary" onClick={() => setForm((f) => ({ ...f, items: [...f.items, { productId: '', qty: 1, unitPrice: 0 }] }))}>הוסף פריט</button>
-                  <div className="fw-semibold">סה״כ הזמנה: {orderTotal.toLocaleString('he-IL')}</div>
+                  <div className="fw-semibold">סה"כ הזמנה: {new Intl.NumberFormat('he-IL', { style: 'currency', currency: (import.meta?.env && import.meta.env.VITE_CURRENCY) ? import.meta.env.VITE_CURRENCY : 'ILS' }).format(orderTotal)}</div>
                 </div>
               </div>
             </div>
@@ -105,7 +109,7 @@ export default function OrderCreate() {
               <textarea className="form-control" rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
             <div className="col-12 d-flex gap-2">
-              <button className="btn btn-success" disabled={saving || !form.customerId || !form.items.length} onClick={onSave}>שמור הזמנה</button>
+              <button className="btn btn-success" disabled={saving || !form.customerId || !form.items.length || form.items.some(it => !String(it.productId||'').trim())} onClick={onSave}>שמור הזמנה</button>
               <button className="btn btn-secondary" type="button" onClick={() => nav(-1)}>בטל</button>
             </div>
           </div>

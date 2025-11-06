@@ -1,6 +1,6 @@
 // src/lib/cloudApi.js
 // Read data directly from Firebase (client SDK) using env config
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured, getFirebaseApp } from './firebaseClient';
 
 const USERS_COLL = import.meta.env.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
@@ -112,10 +112,12 @@ export async function listCloudOrders() {
     }
     const db = getDb();
     if (!db) return [];
-    const snap = await getDocs(collection(db, ORDERS_COLL));
+    // Read from all collections named ORDERS_COLL across the database (includes top-level and subcollections)
+    const snap = await getDocs(collectionGroup(db, ORDERS_COLL));
     const list = [];
-    snap.forEach((doc, idx) => {
-      list.push(normalizeOrder({ id: doc.id, ...(doc.data() || {}) }, idx));
+    let i = 0;
+    snap.forEach((doc) => {
+      list.push(normalizeOrder({ id: doc.id, ...(doc.data() || {}) }, i++));
     });
     return list;
   } catch (e) {
@@ -165,13 +167,20 @@ function normalizeCustomer(data = {}, index = 0) {
 
 function normalizeOrder(data = {}, index = 0) {
   const uid =
-    data.userId || data.customerId || data.customerUID || data.uid || data.firebaseUid;
+    data.userId || data.customerId || data.customerUID || data.uid || data.firebaseUid || (data.customer && (data.customer.uid || data.customerUid));
   const idCandidate = data.id ?? data.orderId ?? data.order_id ?? uid;
   const ts = data.createdAt || data.created_at || data.timestamp || data.placedAt || data.time;
+  // If amount is missing, try to compute from items
+  let amount = Number(data.amount ?? data.total ?? 0);
+  if (!amount && Array.isArray(data.items)) {
+    try {
+      amount = data.items.reduce((sum, it) => sum + Number(it.qty || it.quantity || 1) * Number(it.unitPrice || it.price || 0), 0);
+    } catch {}
+  }
   return {
     id: String(idCandidate ?? `remote-order-${index}`),
     userId: uid ? String(uid) : undefined,
-    amount: Number(data.amount ?? data.total ?? 0),
+    amount: Number(amount || 0),
     createdAt: toMs(ts),
     raw: data,
   };

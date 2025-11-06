@@ -55,7 +55,7 @@ export function getDb() {
     // Improve compatibility in strict networks/proxies and reduce noisy terminate errors
     db = initializeFirestore(a, {
       experimentalAutoDetectLongPolling: true,
-      useFetchStreams: false,
+      useFetchStreams: true,
     });
   } catch (e) {
     // If already initialized (e.g., HMR), fall back to the default getter

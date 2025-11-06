@@ -1,9 +1,13 @@
 // services/orders.ts
 import { db } from "../firebase";
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 type OrderItem = { productId: string; qty: number; unitPrice: number };
+
+// Resolve collection names from env with sensible defaults
+const USERS_COLL = (import.meta as any)?.env?.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
+const ORDERS_COLL = (import.meta as any)?.env?.VITE_FIREBASE_ORDERS_COLLECTION || 'orders_prod';
 
 export async function createOrder(items: OrderItem[], status: "initiated"|"pending_payment"|"draft" = "initiated", shipping = {}, notes = "") {
   const auth = getAuth();
@@ -24,15 +28,27 @@ export async function createOrder(items: OrderItem[], status: "initiated"|"pendi
 // Create an order for a specific customer UID (manual admin entry)
 export async function createOrderForUser(customerUid: string, items: OrderItem[], status: "initiated"|"pending_payment"|"draft" = "initiated", shipping = {}, notes = "") {
   if (!customerUid) throw new Error("customerUid required");
-  return await addDoc(collection(db, "orders_prod"), {
+  // Clean items per rules
+  const cleanItems = (items || []).map((it) => ({
+    productId: String(it?.productId || "").trim(),
+    qty: Math.max(1, Math.trunc(Number(it?.qty || 0))),
+    unitPrice: Number(it?.unitPrice || 0),
+  }));
+  if (!cleanItems.length || cleanItems.some((i) => !i.productId)) {
+    throw new Error("Each item requires non-empty productId");
+  }
+  // Write to user-scoped subcollection to meet rules easily
+  const col = collection(db, `users_prod/${customerUid}/orders_prod`);
+  const res = await addDoc(col, {
     customer: { uid: customerUid },
-    items,
+    items: cleanItems,
     status,
-    shipping,
-    notes,
+    shipping: shipping || {},
+    notes: notes || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  return res;
 }
 
 export async function updateOrder(orderId: string, patch: Partial<{
