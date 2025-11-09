@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import * as api from "../lib/localApi";
 import { cloudAvailable, listCloudOrders } from "../lib/cloudApi";
 import { fetchCrmOrders } from "../lib/functionsApi";
-import { Modal } from 'react-bootstrap';
 
 // Mini pipeline (temporary, client-only) configuration
 const PIPELINE_STAGES = ['received','graphics','production','shipped'];
@@ -25,12 +24,6 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersSource, setOrdersSource] = useState('');
-  const [fbConfigured, setFbConfigured] = useState(false);
-  const [checkingFb, setCheckingFb] = useState(true);
-  const [syncingUsers, setSyncingUsers] = useState(false);
-  const [syncingOrders, setSyncingOrders] = useState(false);
-  const [showFbHelp, setShowFbHelp] = useState(false);
-  const directMode = String(import.meta.env.VITE_USE_FIREBASE_DIRECT || '').toLowerCase() === 'true';
 
   useEffect(() => {
     (async () => {
@@ -46,21 +39,6 @@ export default function Dashboard() {
     })();
   }, []);
 
-  // Check if server-side Firebase sync is available
-  useEffect(() => {
-    let abort = false;
-    (async () => {
-      try {
-        const ok = await api.firebaseSyncStatus();
-        if (!abort) setFbConfigured(!!ok);
-      } catch {
-        if (!abort) setFbConfigured(false);
-      } finally {
-        if (!abort) setCheckingFb(false);
-      }
-    })();
-    return () => { abort = true; };
-  }, []);
 
   // Load orders: prefer Cloud Function when enabled, else Firestore
   useEffect(() => {
@@ -127,37 +105,6 @@ export default function Dashboard() {
     return cols;
   }, [orders]);
 
-  async function onSyncUsers() {
-    setSyncingUsers(true);
-    try {
-      const res = await api.syncFirebaseUsers();
-      try { setCustomers(await api.listCustomers()); } catch {}
-      const created = res?.created ?? 0;
-      const updated = res?.updated ?? 0;
-      const total = res?.total ?? 0;
-      alert(`Firebase users sync complete\nCreated: ${created}\nUpdated: ${updated}\nScanned: ${total}`);
-    } catch (e) {
-      alert('Users sync failed. Check server and env configuration.');
-    } finally {
-      setSyncingUsers(false);
-    }
-  }
-
-  async function onSyncOrders() {
-    setSyncingOrders(true);
-    try {
-      const res = await api.syncFirebaseOrders();
-      try { if (typeof api.listTasks === 'function') setTasks(await api.listTasks()); } catch {}
-      const updated = res?.updated ?? 0;
-      const scanned = res?.scanned ?? 0;
-      alert(`Firebase orders sync complete\nUpdated customers/tasks: ${updated}\nScanned orders: ${scanned}`);
-    } catch (e) {
-      alert('Orders sync failed. Check server and env configuration.');
-    } finally {
-      setSyncingOrders(false);
-    }
-  }
-
   return (
     <div className="container-fluid dashboard">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -168,28 +115,6 @@ export default function Dashboard() {
           style={{ maxWidth: 420 }}
           placeholder="חיפוש, תיוג, ליד, לקוח…"
         />
-          <button
-            className="btn btn-outline-success"
-            onClick={fbConfigured ? onSyncUsers : () => setShowFbHelp(true)}
-            disabled={syncingUsers}
-            title={fbConfigured ? 'Import users from Firestore via server' : 'Server sync not configured — click for help'}
-          >
-            {syncingUsers && (
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            )}
-            ייבוא משתמשים
-          </button>
-          <button
-            className="btn btn-outline-success"
-            onClick={fbConfigured ? onSyncOrders : () => setShowFbHelp(true)}
-            disabled={syncingOrders}
-            title={fbConfigured ? 'Import orders from Firestore via server' : 'Server sync not configured — click for help'}
-          >
-            {syncingOrders && (
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            )}
-            ייבוא הזמנות
-          </button>
         </div>
       </div>
 
@@ -234,30 +159,6 @@ export default function Dashboard() {
           <div className="d-flex gap-2 mt-3 flex-wrap stack-sm">
             <Link to="/pipeline" className="btn btn-primary">Run PIPELINE</Link>
             <Link to="/pipeline?import=1" className="btn btn-outline-primary">Import CSV</Link>
-
-            {/* Firebase import buttons (always visible) */}
-            <button
-              className="btn btn-outline-success"
-              onClick={fbConfigured ? onSyncUsers : () => setShowFbHelp(true)}
-              disabled={syncingUsers}
-              title={fbConfigured ? 'Import users from Firestore via server' : 'Server sync not configured — click for help'}
-            >
-              {syncingUsers && (
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              )}
-              ייבוא משתמשים
-            </button>
-            <button
-              className="btn btn-outline-success"
-              onClick={fbConfigured ? onSyncOrders : () => setShowFbHelp(true)}
-              disabled={syncingOrders}
-              title={fbConfigured ? 'Import orders from Firestore via server' : 'Server sync not configured — click for help'}
-            >
-              {syncingOrders && (
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              )}
-              ייבוא הזמנות
-            </button>
           </div>
         </div>
 
@@ -310,7 +211,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
-      <FbHelpModal show={showFbHelp} onHide={() => setShowFbHelp(false)} directMode={directMode} />
     </div>
   );
 }
@@ -338,26 +238,4 @@ export function formatMoney(n) {
 }
 
 /* ===== Modals ===== */
-export function FbHelpModal({ show, onHide, directMode }) {
-  return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Enable Firebase Import (Server)</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <div className="mb-2">
-          To import via server, ensure:
-        </div>
-        <ol className="mb-2">
-          <li>Set <code>VITE_USE_FIREBASE_DIRECT=false</code> in <code>src/.env</code> (current: {String(directMode)}).</li>
-          <li>In <code>server</code>, install <code>firebase-admin</code> and configure <code>.env</code> per <code>server/.env.example</code> (service account).</li>
-          <li>Run the server (exposes <code>/api/sync/firebase/*</code>).</li>
-          <li>Reload this page and click the buttons again.</li>
-        </ol>
-        <div className="text-muted small">
-          Tip: For direct client reads (without server), keep direct mode true and data loads live, but server import buttons won’t run.
-        </div>
-      </Modal.Body>
-    </Modal>
-  );
-}
+
