@@ -48,9 +48,7 @@ export default function UserAllLogos({ uid, max = 48 }) {
 
         const bases = [
           `users_prod/${uid}/orders_prod`,
-          `users_prod/${uid}/orders`,
           `users_prod/${uid}/logos`,
-          `users_prod/${uid}`,
           `logos/${uid}`,
         ];
         for (const b of bases) {

@@ -1,11 +1,17 @@
-// services/ordersExtra.ts
+// src/services/ordersExtra.ts
 import { db } from '../firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 type OrderItem = { productId: string; qty: number; unitPrice: number };
 
-const USERS_COLL = (import.meta as any)?.env?.VITE_FIREBASE_USERS_COLLECTION || 'users_prod';
-const ORDERS_COLL = (import.meta as any)?.env?.VITE_FIREBASE_ORDERS_COLLECTION || 'orders_prod';
+// אוספים – כאן בכוונה מקובע לשמות שמופיעים ב-rules
+const ORDERS_COLL =
+  (import.meta as any)?.env?.VITE_FIREBASE_ORDERS_COLLECTION || 'orders_prod';
 
 export async function createCrmOrderForUser(
   customerUid: string,
@@ -21,16 +27,16 @@ export async function createCrmOrderForUser(
     qty: Math.max(1, Math.trunc(Number(it?.qty || 0))),
     unitPrice: Number(it?.unitPrice || 0),
   }));
+
   if (!cleanItems.length || cleanItems.some((i) => !i.productId)) {
     throw new Error('Each item requires non-empty productId');
   }
 
-  // Only client-allowed fields per rules: customer, items, status, shipping, notes, createdAt, updatedAt
-  // Items are kept simple (productId, qty, unitPrice)
-
-  // Write to top-level orders collection to match current firestore.rules
-  const col = collection(db, `${ORDERS_COLL}`);
-  const ref = doc(col);
+  // כתיבה לאוסף העליון orders_prod – לפי ה-rules:
+  // מותר ליצור אם (isOwnerOfOrderCreate() || canManageOrders())
+  // וגם validOrderOnCreate(request.resource.data)
+  const colRef = collection(db, ORDERS_COLL);
+  const ref = doc(colRef); // id אוטומטי
 
   const orderDoc: any = {
     customer: { uid: String(customerUid) },
@@ -42,15 +48,21 @@ export async function createCrmOrderForUser(
     updatedAt: serverTimestamp(),
   };
 
+  // לוג לדיבוג – ה-timestamps מוצגים בצורה "מדומה"
   try {
     const debugPayload = {
       ...orderDoc,
       createdAt: '[serverTimestamp]',
       updatedAt: '[serverTimestamp]',
     };
-    console.log('createCrmOrderForUser payload', JSON.stringify(debugPayload, null, 2));
-  } catch {}
+    console.log(
+      'createCrmOrderForUser payload',
+      JSON.stringify(debugPayload, null, 2)
+    );
+  } catch {
+    // אם JSON.stringify ייכשל – לא נורא, זה רק לדיבוג
+  }
 
   await setDoc(ref, orderDoc);
-  return { id: ref.id } as any;
+  return { id: ref.id } as { id: string };
 }
