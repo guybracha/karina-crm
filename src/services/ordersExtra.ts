@@ -7,7 +7,19 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
-type OrderItem = { productId: string; qty: number; unitPrice: number };
+type OrderItem = {
+  productId: string;
+  qty: number;
+  unitPrice: number;
+  name?: string | null;
+  slug?: string | null;
+  color?: string | null;
+  size?: string | null;
+  notes?: string | null;
+  baseUnit?: number | null;
+  discountPct?: number | null;
+  lineTotal?: number | null;
+};
 
 // אוספים – כאן בכוונה מקובע לשמות שמופיעים ב-rules
 const ORDERS_COLL =
@@ -22,11 +34,31 @@ export async function createCrmOrderForUser(
 ) {
   if (!customerUid) throw new Error('customerUid required');
 
-  const cleanItems = (items || []).map((it) => ({
-    productId: String(it?.productId || '').trim(),
-    qty: Math.max(1, Math.trunc(Number(it?.qty || 0))),
-    unitPrice: Number(it?.unitPrice || 0),
-  }));
+  const cleanItems = (items || []).map((it) => {
+    const productId = String(it?.productId || '').trim();
+    const qty = Math.max(1, Math.trunc(Number(it?.qty || 0)));
+    const unitPrice = Number(it?.unitPrice || 0);
+
+    const payload: Record<string, unknown> = { productId, qty, unitPrice };
+
+    const enrichments: Record<string, unknown> = {
+      name: it?.name?.toString().trim(),
+      slug: it?.slug?.toString().trim(),
+      color: it?.color?.toString().trim(),
+      size: it?.size?.toString().trim(),
+      notes: it?.notes?.toString().trim(),
+      baseUnit: Number.isFinite(it?.baseUnit) ? Number(it?.baseUnit) : undefined,
+      discountPct: Number.isFinite(it?.discountPct) ? Number(it?.discountPct) : undefined,
+      lineTotal: Number.isFinite(it?.lineTotal) ? Number(it?.lineTotal) : undefined,
+    };
+
+    Object.entries(enrichments).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      payload[key] = value;
+    });
+
+    return payload;
+  });
 
   if (!cleanItems.length || cleanItems.some((i) => !i.productId)) {
     throw new Error('Each item requires non-empty productId');
